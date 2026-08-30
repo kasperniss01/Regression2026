@@ -1,0 +1,271 @@
+---
+title: "Week 1: Monday Solutions"
+author: "Kasper Niss"
+---
+
+## Exercise 1 - Install RwR package and reproduce results
+
+#### RwR package
+
+The [`RwR` package](https://github.com/nielsrhansen/RwR/tree/main/RwR_package) contains the datasets and case studies used in *Regression with R*. Install it directly from GitHub:
+
+We first install `remotes` from CRAN and then use it to install `RwR` from GitHub:
+
+```{r, message = FALSE, results = 'hide'}
+# Install remotes from CRAN
+install.packages("remotes")
+
+# Install RwR from GitHub
+remotes::install_github(
+  "nielsrhansen/RwR/RwR_package"
+)
+```
+
+Load the installed (and other relevant) package(s):
+
+```{r}
+library(RwR)
+library(ggplot2)
+library(tibble)
+library(broom)
+library(splines)
+library(gridExtra)
+
+theme_set(theme_bw()) # plotting theme is always theme_bw()
+```
+
+#### Reproducing results from Section 2.2 and 2.4 in RwR
+
+## Exercise 2 - 2.1
+
+We simulate a dataset to work with and visualize it.
+
+```{r}
+set.seed(04022016)
+factor_labels <- rep(c("A", "B", "C"), each = 50)
+formula_data <- tibble(
+    x =  rnorm(150, 0),
+    z = factor(sample(factor_labels)),
+    mu = (z == "A") + cos(x) + 0.5 * (z == "B") * sin(x),
+    y = rnorm(150, mu, 0.5)
+)
+
+p0 <- ggplot(data = formula_data, aes(x = x, y = y)) +
+  geom_point()
+p0
+```
+
+#### 1. Fit a linear regression model using `lm(y ~ x, formula_data)` where `y` is the outcome variable and `x` is the predictor variable. Investigate the residuals. Does the model fit the data?
+
+We fit the linear model
+
+```{r}
+linearfit <- lm(formula = y ~ x, data = formula_data)
+```
+
+and inspect the fit
+
+```{r, message = FALSE}
+linearfit
+p0 + geom_smooth(method = "lm", formula = y ~ x)
+```
+
+and it looks like a straight line is a bad fit for this data. 
+
+To plot the residuals we use `augment` 
+
+```{r}
+linearfit_diag <- augment(linearfit) # diag = diagnostics
+
+gridExtra::grid.arrange(
+  ggplot(linearfit_diag, aes(.fitted, .resid)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth(),
+
+  ggplot(linearfit_diag, aes(.resid)) +
+    geom_histogram(bins = 40),
+
+  ggplot(linearfit_diag, aes(sample = .std.resid)) +
+    geom_qq() +
+    geom_qq_line(),
+
+  ncol = 3
+)
+```
+
+Residuals plotted against fitted values (plot to left) shows the mean value assumption (A1) seems to be violated: the mean of the residuals are not zero. 
+
+#### 2. How do you get rid of the intercept via the formula specification?
+
+We get rid of the intercept by adding a `-1`to the model fit:
+
+```{r}
+no_intercept_linearfit <- lm(y ~ x - 1, data = formula_data)
+
+no_intercept_linearfit |> model.matrix() |> head()
+
+p0 + 
+  geom_smooth(method = "lm", formula = y ~ x - 1)
+```
+
+#### 3. How can you check (numerically) that the two model matrices above span the same column space?
+
+We can "add" a factor to the formula and also change the baseline of the factor
+
+```{r}
+X1 <- model.matrix(y ~ x + z, formula_data)
+X1 |> head()
+
+contrasts(formula_data$z) <- contr.treatment(levels(formula_data$z), base = 3)
+X2 <- model.matrix(y ~ x + z, formula_data)
+X2 |> head()
+```
+
+Note how the last column changes name. 
+
+To check whether or not X2 has the same column space as X1, we can append the columns of X2 to X1 and see if the column rank changes. 
+
+```{r}
+qr(X1)$rank
+qr(cbind(X1, X2))$rank #check if X2 increases the column space of X1
+
+qr(X2)$rank
+qr(cbind(X2, X1))$rank #check if X1 increases the column space of X2
+```
+
+We could also compare their projections onto the column space
+```{r}
+Q_X1 <- qr.Q(qr(X1))
+Q_X2 <- qr.Q(qr(X2))
+
+#projections
+P_X1 <- Q_X1 %*% t(Q_X1) 
+P_X2 <- Q_X2 %*% t(Q_X2)
+
+max(abs(P_X1 - P_X2))
+```
+
+#### 4. Are the two models below identical? That is, do the columns of the two model matrices span the same column space?
+
+The two matrices are
+```{r}
+X1 <- model.matrix(y ~ z + x : z, formula_data)
+X1 |> head()
+
+X2 <- model.matrix(y ~ x * z, formula_data)
+X2 |> head()
+```
+
+We proceed as above by checking if the column rank increases (and if their projections are the same)
+
+```{r}
+qr(X1)$rank
+qr(cbind(X1, X2))$rank #check if X2 increases the column space of X1
+
+qr(X2)$rank
+qr(cbind(X2, X1))$rank #check if X1 increases the column space of X2
+
+Q_X1 <- qr.Q(qr(X1))
+Q_X2 <- qr.Q(qr(X2))
+
+#projections
+P_X1 <- Q_X1 %*% t(Q_X1) 
+P_X2 <- Q_X2 %*% t(Q_X2)
+
+max(abs(P_X1 - P_X2))
+```
+
+It doesn't (and the projections are the same), so they span the same column space. 
+
+#### 5. Run the following code and explain what it returns.
+
+
+```{r}
+model.matrix(y ~ cos(x) + z * sin(x), formula_data) |>
+    head()
+```
+
+The code creates the model matrix for the model with predictor `cos(x)`, the factors `z`, and the predictors `sin(x)`. 
+
+Recall that `z * sin(x) = z + sin(x) + z:sin(x)` where the latter is the interaction term. That is why we see `cos(x), zA, zB, sin(x)` and the interactions between `zA` and `zB` with `sin(x)`. Recall that the baseline factor is `C`. There is also an intercept. 
+
+We allow for different intercepts in the group with the factors and the coefficient of `sin(x)` can change for each group. 
+
+#### 6. Fit the model specified by the formula y ~ cos(x) + z * sin(x) to the simulated data, explain the parameter estimates you get and reproduce Figure 2.7.
+
+```{r}
+interact_model <- lm(y ~ cos(x) + z * sin(x), data = formula_data)
+```
+
+The parameter estimates can be found in
+
+```{r}
+summary(interact_model)
+```
+
+Recall that `C` is the baseline so that `(Intercept)` and `sin(x)` describe this baseline. `zA` and `zB` are intercept differences from `C` and `zA:sin(x)` and `zB:sin(x)` are the changes in the slope of `sin(x)` for each group, relative to `C`.  The coefficient in front of `cos(x)` is the common coefficient of `cos(x)` for all three groups
+
+The fitted group-specific means are approximately (here the coffeciients are rounded)
+$$
+\begin{aligned}
+\widehat\mu_C(x) &= -0.048 + 1.046\cos(x) + 0.128\sin(x),\\
+\widehat\mu_A(x) &= 0.979 + 1.046\cos(x) + 0.055\sin(x),\\
+\widehat\mu_B(x) &= 0.069 + 1.046\cos(x) + 0.524\sin(x).
+\end{aligned}
+$$
+
+Recall that data is simulated with a coefficient of 1 in front of `cos(x)`, and the sine coefficient for group `B` is 0.5 -- both are recovered quite well. The coefficient for group `A` and `C` are 0, with both estimates reasonably close to 0. 
+
+Finally, we reconstruct the plot. 
+
+First we define append the fitted values from the model fit
+
+```{r}
+formula_data$fitted <- predict(interact_model, newdata = formula_data)
+```
+
+Then we construct the true mean-value functions
+
+```{r}
+mean_function <- function(x, z) {
+  (z == "A") + cos(x) + 0.5 * (z == "B") * sin(x)
+}
+```
+
+
+```{r}
+ggplot(formula_data, aes(x = x, y = y, color = z)) +
+  geom_point() +
+  geom_line(aes(y = fitted)) +
+  geom_function(
+    fun = \(x) mean_function(x, "A"),
+    aes(color = "A"),
+    linetype = 2
+  ) +
+  geom_function(
+    fun = \(x) mean_function(x, "B"),
+    aes(color = "B"),
+    linetype = 2
+  ) +
+  geom_function(
+    fun = \(x) mean_function(x, "C"),
+    aes(color = "C"),
+    linetype = 2
+  )
+```
+
+
+Finally also the residual plot, which is easy since we have augmented `formula_data` with the fitted values. We start by calculating the residuals
+
+```{r}
+formula_data$resid <- formula_data$y - formula_data$fitted
+```
+
+and then we plot
+
+```{r}
+ggplot(data = formula_data, aes(x = fitted, y = resid)) + 
+  geom_point(aes(color = z)) + 
+  geom_smooth()
+```
+

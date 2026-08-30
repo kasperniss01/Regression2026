@@ -1,0 +1,20 @@
+---
+title: "Regression 2026"
+---
+
+This project contains solutions to the exercises for the Regression course.
+
+Use the sidebar to navigate to the Monday and Wednesday solutions for each week.
+
+## Course weeks
+
+| Week | Monday | Wednesday |
+|------------------------|------------------------|------------------------|
+| 1 | [Solutions](week-01/solutions-monday.qmd) | [Solutions](week-01/solutions-wednesday.qmd) |
+| 2 | [Solutions](week-02/solutions-monday.qmd) | [Solutions](week-02/solutions-wednesday.qmd) |
+| 3 | [Solutions](week-03/solutions-monday.qmd) | [Solutions](week-03/solutions-wednesday.qmd) |
+| 4 | [Solutions](week-04/solutions-monday.qmd) | [Solutions](week-04/solutions-wednesday.qmd) |
+| 5 | [Solutions](week-05/solutions-monday.qmd) | [Solutions](week-05/solutions-wednesday.qmd) |
+| 6 | [Solutions](week-06/solutions-monday.qmd) | [Solutions](week-06/solutions-wednesday.qmd) |
+| 7 | [Solutions](week-07/solutions-monday.qmd) | [Solutions](week-07/solutions-wednesday.qmd) |
+| 8 | [Solutions](week-08/solutions-monday.qmd) | [Solutions](week-08/solutions-wednesday.qmd) |

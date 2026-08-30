@@ -1,0 +1,270 @@
+---
+title: "Week 1: Wednesday Solutions"
+---
+
+```{r, include = FALSE}
+library(RwR)
+library(ggplot2)
+library(tibble)
+library(broom)
+library(splines)
+library(gridExtra)
+
+theme_set(theme_bw()) # plotting theme is always theme_bw()
+```
+
+## Exercise 1 - 2.2
+This exercise is based on a dataset relating the mean verbal SAT scores for each of the 50 US states to the percentage of students taking the test. The data comes with the RwR package.
+
+```{r}
+library(RwR)
+data(sat, package = "RwR")
+```
+
+We take a brief look at the dataset
+
+```{r}
+summary(sat)
+p0 <- ggplot(data = sat, aes(x = percent, y = verbalScore)) + 
+    geom_point()
+
+p0
+```
+
+#### 1. Fit a linear regression model (with an intercept) of the state SAT score as a function of percentage of students. Add the fitted line to the plot.
+
+We start by fitting the model
+
+```{r}
+fit <- lm(verbalScore ~ percent, data = sat)
+summary(fit)
+```
+
+We visiualize the fitted linear regression model
+
+```{r}
+p0 + geom_smooth(method = "lm", formula = y ~ x)
+```
+
+Also an alternative solutions using `predict`, i.e. predicting values from the model
+```{r}
+fit.predict <- predict(fit, newdata = sat, interval = "confidence", level = 0.95) |> 
+    as.data.frame()
+
+p0 + geom_line(aes(y = fit.predict$fit), color = "blue") + 
+    geom_ribbon(aes(ymin = fit.predict$lwr, ymax = fit.predict$upr), 
+    alpha = 0.2)
+```
+
+#### 2. Fit a piecewise affine function with the “bend” at 50% of the students taking the test. How can you formally test the linearity assumption in Question 1 within this larger model?
+
+Recall the hint: you want to fit a linear model with a model matrix 
+with three columns representing an intercept and two piecewise linear functions. You can, for instance, generate those piecewise linear functions by an ifelse() construction in the formula. Try different choices of columns. Is there one choice particularly suitable for testing the linearity assumption?
+
+We need to fit a piecewise affine mean function with a bend at $50\%$ students taking the test. That is, we have to fit a mean function with two slopes: one for values below $50\%$ and for for after $50\%$. 
+
+We construct the model matrix with three columns: 1) the intercept; 2) the column $x$; and 3) the column $\operatorname{max}(x - 50, 0)$.
+
+So if $x \leq 50$ then the third column is $0$ and there is only contribution from the intercept and the second column and if $x > 50$ then there is another contribution to the slope(corresponding to a change in the slope). 
+
+It corresponds to the mean function
+\begin{align*}
+m(x) &= \mathbf E(Y \mid X = x) \\
+     &= \beta_0 + \beta_1 x + \beta_2 (x - 50)_+ \\
+     &= \begin{cases}
+\beta_0+\beta_1x, & x\leq 50,\\
+\beta_0+\beta_1x+\beta_2(x-50), & x>50 \end{cases} \\
+&= \begin{cases} \beta_0 + \beta_1 x & x \leq 50 \\ (\beta_0 - 50\beta_2) + (\beta_1 + \beta_2) x & x > 50 \end{cases}.
+\end{align*}
+
+Note how the slope changes if $x > 50$ compared to if $x \leq 50$, or in other words, $\beta_2$ changes the slope. It is also continuous. 
+
+We define the two needed linear functions
+
+```{r}
+f1 <- function(x) x
+f2 <- function(x) ifelse(x <= 50, 0, x - 50) # equivalently pmax(x - 50, 0)
+```
+
+We visualize the ``bend'' implied by the the functions
+```{r}
+bend_data <- data.frame(
+    percent = rep(sat$percent, 2), 
+    y = c(f1(sat$percent), f2(sat$percent)), 
+    variable = rep(c("f1", "f2"), each = nrow(sat))
+)
+
+ggplot(bend_data, aes(x = percent, y = y, color = variable)) +
+  geom_line() 
+```
+
+Now, we fit the model
+```{r}
+piecewise_fit <- lm(verbalScore ~ f1(percent) + f2(percent), data = sat)
+summary(piecewise_fit)
+```
+
+yielding the (approximate) estimated mean function
+$$
+\widehat m(x)=
+\begin{cases}
+497.785-1.635x, & x\leq 50,\\
+383.463+0.652x, & x>50.
+\end{cases}
+$$
+
+We see that the fitted slopes change from $-1.635$ below 50 to $0.652$ above 50.
+
+Setting $\beta_2 = 0$ removes the ``bend'' term and gives $m(x) = \beta_0 + \beta_1 x$ for every $x$, the model from Question 1. 
+
+We can also see this using the model matrices. The model matrix from Question 1 has columns 1) intercept; and 2) $x$. Since we add another column to the model matrix in this question, the model from Question 1 is nested in the current one (the column spaces are nested). 
+
+Formally we test the hypothesis
+$$
+H_0: \beta_2 = 0
+$$
+against the alternative that $\beta_2$ is non-zero. We use an $F$-test
+```{r}
+anova(fit, piecewise_fit)
+```
+
+The test gives $F=33.71$ and $p=5.28\times10^{-7}$. We therefore reject the hypothesis $H_0$, that is we reject that $\beta_2 = 0$, or in words: ``The data provides evidence for a change of slopes at 50''. 
+
+
+## Exercise 2 - 2.5
+This exercise relates the empirical correlations between the predictor variables to the variance of the least squares estimator. The setup is as follows. The matrix $\mathbf{X}$ denotes an $n \times p$ matrix of predictor variables, $\mathbf{1}$ denotes an  $n$-dimensional column vector of ones and $\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}$ denotes the $n \times (p + 1)$ matrix with the first column being $\mathbf{1}$ and the remaining $n \times p$ block being $\mathbf{X}$. We let
+$$
+\bar X = \frac{1}{n} \mathbf{X}^\top \mathbf{1}
+$$
+denote the $p$-dimensional vector of mean values for the predictor (the empirical average of each predictor), and we let
+ $$
+ \hat \Sigma = \frac{1}{n}(\mathbf{X} - \mathbf{1} \bar X^\top)^\top (\mathbf{X} - \mathbf{1} \bar X^\top)
+ $$
+denote the empirical covariance matrix. It is assumed that $\hat \Sigma$ is invertible.
+
+#### 1. Show that
+$$
+n \hat \Sigma = \mathbf{X}^\top \mathbf{X} - n\bar X \bar X^\top.
+$$
+
+We simply plug into the definitions and along the way we use that $\mathbf{1}^\top \mathbf{1} = n$. We have
+\begin{align*}
+n\hat\Sigma
+&= (\mathbf X-\mathbf 1\bar X^\top)^\top
+   (\mathbf X-\mathbf 1\bar X^\top) \\
+&= (\mathbf X^\top-\bar X\mathbf 1^\top)
+   (\mathbf X-\mathbf 1\bar X^\top) \\
+&= \mathbf X^\top\mathbf X
+   -\mathbf X^\top\mathbf 1\bar X^\top
+   -\bar X\mathbf 1^\top\mathbf X
+   +\bar X\mathbf 1^\top\mathbf 1\bar X^\top \\
+&= \mathbf X^\top\mathbf X
+   -n\bar X\bar X^\top
+   -n\bar X\bar X^\top
+   +n\bar X\bar X^\top \\
+&= \mathbf X^\top\mathbf X-n\bar X\bar X^\top.
+\end{align*}
+
+#### 2. Use block matrix inversion to show that
+$$
+\begin{pmatrix} \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}^\top \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix} \end{pmatrix}^{-1} = \begin{pmatrix} \ast & \ast \\ \ast & \frac{1}{n}\hat \Sigma^{-1} \end{pmatrix}.
+$$
+
+First we recall the block matrix inversion formula
+$$
+P = \begin{pmatrix} A & B \\ C & D \end{pmatrix}^{-1} = \begin{pmatrix} \ast & \ast \\ \ast & (D - C A^{-1} B)^{-1} \end{pmatrix},
+$$
+which holds whenever $A$ is invertible, and the Schur complement of $A$ in $P$ is invertible.
+
+Now let $\mathbf{Z} = \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}$. Then
+\begin{align*}
+\mathbf{Z}^\top \mathbf{Z} &= \begin{pmatrix} \mathbf{1}^\top \\ \mathbf{X}^\top \end{pmatrix} \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix} \\
+&= \begin{pmatrix} \mathbf{1}^\top \mathbf{1} & \mathbf{1}^\top \mathbf{X} \\ \mathbf{X}^\top \mathbf{1} & \mathbf{X}^\top \mathbf{X} \end{pmatrix} \\
+&= \begin{pmatrix} n & \mathbf{1}^\top \mathbf{X} \\ \mathbf{X}^\top \mathbf{1} & \mathbf{X}^\top \mathbf{X} \end{pmatrix}.
+\end{align*}
+
+
+Thus, using block inversion, recalling the definition of $\bar X$, and the result from the previous exercise, we find that
+\begin{align*}
+\begin{pmatrix} \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}^\top \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix} \end{pmatrix}^{-1} &= (\mathbf{Z}^\top \mathbf{Z})^{-1} \\
+&= (\mathbf{X}^\top \mathbf{X} - \mathbf{X}^\top \mathbf{1} \frac{1}{n} \mathbf{1}^\top \mathbf{X})^{-1} \\
+&= (\mathbf{X}^\top \mathbf{X} - n \bar X \frac{1}{n} \bar X^\top)^{-1} \\
+&= (\mathbf{X}^\top \mathbf{X} - n \bar X \bar X^\top)^{-1} \\
+&=\frac{1}{n} \hat\Sigma^{-1}.
+\end{align*}
+
+We have to assume that we have observed some data, that is $n>0$ so that $n$ is invertible and we have also assumed that $\hat \Sigma$ is invertible, so the block inversion result can be applied and the above calculation stands true. 
+
+#### 3. Show that if we fit a linear model with an intercept (which is denoted $\beta_0$) using the least squares estimator, then the variance of $\hat\beta_i$, conditionally on $\mathbf{X}$, for $i = 1, \dots, p$ is $\frac{\sigma^2}{n}(\hat\Sigma^{-1})_{ii}$
+
+Write $\beta = (\beta_0, \beta_1, \dots, \beta_p)$ such that the first coordinate corresponds to the intercept. The belonging model matrix is $\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}$. 
+
+Under the assumption of \textbf{A1}, \textbf{A2}, \textbf{A4}, and that $\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}$ has full rank, Theorem 2.2 provides the variance of the ordinary least squares estimator
+$$
+\operatorname{Var}(\hat\beta \mid \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}) = \sigma^2 (\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}^\top \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix})^{-1}. 
+$$
+
+Using the result from the previous exercise, 
+$$
+\operatorname{Var}(\hat\beta \mid \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}) = \sigma^2 \begin{pmatrix} \ast & \ast \\ \ast & \frac{1}{n}\hat \Sigma^{-1} \end{pmatrix}.
+$$
+
+Now it is just a matter of picking out the correct components of the covariance matrix, and we get, for each $i = 1, \dots, p$, that
+$$
+\operatorname{Var}(\hat\beta_i \mid \begin{pmatrix} \mathbf{1} & \mathbf{X}\end{pmatrix}) = \frac{\sigma^2}{n} (\hat \Sigma^{-1})_{ii}.
+$$
+
+Note that it does not matter whether or not we condition on $\mathbf{X}$ or $\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}$ since $\sigma(\mathbf{X}) = \sigma(\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix})$. This proves the result. 
+
+Let $\hat\Sigma_{-1}$ be the empirical covariance matrix with the first row and column removed. Furthermore, write $\hat\Sigma$ in block form as
+$$
+\hat \Sigma = \begin{pmatrix} \hat\sigma_1^2 & \hat\gamma^\top \\
+\hat\gamma & \hat\Sigma_{-1}
+\end{pmatrix}.
+$$
+
+#### 4. Use block inversion (again) to show that
+$$
+(\hat\Sigma_{11})^{-1} = \frac{1}{\hat\sigma_1^2 - \hat\gamma^\top (\hat\Sigma_{-1})^{-1} \hat\gamma}. 
+$$
+
+We have to assume that $\hat\sigma_1 \neq 0$ to apply the block inversion formula. Because 
+
+
+Furtermore, we also need $\hat\sigma_1^2 - \hat\gamma^\top (\hat\Sigma_{-1})^{-1} \hat\gamma$ to be invertible, which is equivalent to $\hat\sigma_1^2 \neq \hat\gamma^\top (\hat\Sigma_{-1})^{-1} \hat\gamma$ -- can this be shown or do we have to assume that?. 
+
+Assuming that, block inversion applied to the block-decomposition of $\Sigma$ given above yields the result.
+
+#### 5. Show that in the case $p = 2$, the formula above reduces to
+$$
+(\hat \Sigma^{-1})_{11} = \frac{1}{\hat\sigma_1^2 (1 - \widehat{\operatorname{corr}}(X_1, X_2)^2)}.
+$$
+
+Recall the definition of the correlation between two random variables (with finite variance) $X$ and $Y$
+$$
+\operatorname{corr}(X, Y) = \frac{\operatorname{cov}(X, Y)}{\sqrt{\operatorname{Var}(X) \operatorname{Var}(Y)}}
+$$
+whereby
+$$
+\operatorname{corr}(X, Y)^2 = \frac{\operatorname{cov}(X, Y)^2}{\operatorname{Var}(X) \operatorname{Var}(Y)}.
+$$
+
+If $p = 2$ then there are two (univariate) predictors $X_1$ and $X_2$, and $\hat\Sigma_{-1} = \operatorname{Var}(X_2)$ and $\hat \gamma = \widehat{\operatorname{cor}}(X_1, X_2)$. Also, $\operatorname{Var}{X_1} = \sigma_1^2$ and $\operatorname{Var}{X_2} = \sigma_2^2$ and they have empirical variances denoted by a $\hat\cdot$, and we wil use the $\operatorname{Var}$ and $\sigma^2$ interchangeably. 
+
+The formula from the previous exercise new yields
+\begin{align*}
+(\hat\Sigma_{-1})_{11} &= \frac{1}{\hat\sigma_1^2 - \widehat{\operatorname{cov}}(X_1, X_2) \frac{1}{\widehat{\operatorname{Var}}(X_2)}\widehat{\operatorname{cov}}(X_1, X_2)} \\
+&= \frac{1}{\hat\sigma_1^2 - \frac{\widehat{\operatorname{cov}}(X_1, X_2)}{\widehat{{\operatorname{Var}}(X_2)}}} \\
+&= \frac{1}{\hat\sigma_1^2 (1 - \frac{\widehat{\operatorname{cov}}(X_1, X_2)}{\widehat{\operatorname{Var}}(X_2)} \frac{1}{\hat\sigma_1^2})} \\
+&= \frac{1}{\hat\sigma_1^2 ( 1 - \widehat{\operatorname{corr}}(X_1, X_2)^2)},
+\end{align*}
+as desired. 
+
+
+
+
+BEFORE WE FINISH MAKE SURE THAT EVERYTHING ABOUT BLOCK INVERSION IS WRITTEN CORRECTLY.
+
+## Exercise 3 - 3.1
+
+Add the exercise and its solution here.

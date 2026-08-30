@@ -1,0 +1,21 @@
+# /_site/
+# /.quarto/
+# .DS_Store
+# .Rhistory
+# .RData
+# .Rproj.user/
+
+# **/*.quarto_ipynb
+
+# macOS
+.DS_Store
+
+# R
+.Rhistory
+.RData
+Rplots.pdf
+
+# Quarto
+.quarto/
+_site/
+_freeze/

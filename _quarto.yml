@@ -1,0 +1,76 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - index.qmd
+    - "week-*/solutions-*.qmd"
+
+website:
+  title: "Regression 2026"
+  search: true
+  sidebar:
+    style: docked
+    contents:
+      - href: index.qmd
+        text: Home
+      - section: "Week 1"
+        contents:
+          - href: week-01/solutions-monday.qmd
+            text: Monday solutions
+          - href: week-01/solutions-wednesday.qmd
+            text: Wednesday solutions
+      - section: "Week 2"
+        contents:
+          - href: week-02/solutions-monday.qmd
+            text: Monday solutions
+          - href: week-02/solutions-wednesday.qmd
+            text: Wednesday solutions
+      - section: "Week 3"
+        contents:
+          - href: week-03/solutions-monday.qmd
+            text: Monday solutions
+          - href: week-03/solutions-wednesday.qmd
+            text: Wednesday solutions
+      - section: "Week 4"
+        contents:
+          - href: week-04/solutions-monday.qmd
+            text: Monday solutions
+          - href: week-04/solutions-wednesday.qmd
+            text: Wednesday solutions
+      - section: "Week 5"
+        contents:
+          - href: week-05/solutions-monday.qmd
+            text: Monday solutions
+          - href: week-05/solutions-wednesday.qmd
+            text: Wednesday solutions
+      - section: "Week 6"
+        contents:
+          - href: week-06/solutions-monday.qmd
+            text: Monday solutions
+          - href: week-06/solutions-wednesday.qmd
+            text: Wednesday solutions
+      - section: "Week 7"
+        contents:
+          - href: week-07/solutions-monday.qmd
+            text: Monday solutions
+          - href: week-07/solutions-wednesday.qmd
+            text: Wednesday solutions
+      - section: "Week 8"
+        contents:
+          - href: week-08/solutions-monday.qmd
+            text: Monday solutions
+          - href: week-08/solutions-wednesday.qmd
+            text: Wednesday solutions
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    code-copy: true
+    code-overflow: wrap
+
+execute:
+  freeze: auto
+
+editor: visual
+
