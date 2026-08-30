@@ -35,6 +35,125 @@ theme_set(theme_bw()) # plotting theme is always theme_bw()
 ```
 
 #### Reproducing results from Section 2.2 and 2.4 in RwR
+We load the `claims` dataset and take a look at it. 
+
+```{r}
+data(claims, package = "RwR")
+tibble(claims) |> head()
+```
+
+Recall the trade group encoding:
+1 = residences
+2 = ordinary industry
+3 = hotel and restaurant
+4 = production industry.
+
+We plot the histogram of claim size and insurance (on log scale)
+
+```{r}
+grid.arrange(
+  ggplot(data = claims, aes(x = claims)) + 
+    geom_histogram(color = "white") + 
+    scale_x_log10(),
+  ggplot(data = claims, aes(x = sum)) + 
+    geom_histogram(color = "white") + 
+    scale_x_log10()
+)
+```
+
+Note that we use the default number of bins so the histogram might not look exactly as the one in RwR book. 
+
+Next we plot claims against sum  (on log-log-scale) and fit a linear regression model
+
+```{r}
+p0 <- ggplot(
+    data = claims, 
+    aes(sum, claims)
+) + 
+    scale_x_log10(
+        "Insurance sum (DKK)", 
+        breaks = 10^c(6, 7, 8), 
+        labels = c("1M", "10M", "100M")
+    ) +
+    scale_y_log10(
+        "Claim size (DKK)", 
+        breaks = 10^c(2, 4, 6, 8), 
+        labels = c("100", "10K", "1M", "100M")
+    ) +
+    geom_point(alpha = 0.2)
+
+p <- p0 +
+    geom_smooth(
+        method = "lm", 
+        linewidth = 1, 
+        se = FALSE
+    )
+
+p
+```
+
+We can facet on each trade group, that is, we plot the scatter plot for each trade group 
+
+```{r}
+p + facet_wrap(~ grp, ncol = 4)
+```
+
+We now fit a linear model with `log(claims)` as response and `log(sum)` as the predictor
+
+```{r}
+claims_lm <- lm(
+    log(claims) ~ log(sum), 
+    data = claims
+)
+coefficients(claims_lm)
+```
+
+corresponding to the fitted line in the scatter plot where we don't split according to trade group. 
+
+We also look at the model matrix
+
+```{r}
+model.matrix(claims_lm)[781:784, ]
+```
+
+Next we fit a model with seperate intercept for each trade group
+
+```{r}
+claims_lm_add <- lm(
+    log(claims) ~ log(sum) + grp,
+    data = claims
+)
+coefficients(claims_lm_add)
+```
+
+and (parts of) the model matrix is
+
+```{r}
+model.matrix(claims_lm_add)[781:784, ]
+```
+
+An alternative parametrization as well
+
+```{r}
+claims_lm_add <- lm(
+    log(claims) ~ log(sum) + grp, 
+    data = claims,
+    contrasts = list(grp = "contr.sum")
+)
+coefficients(claims_lm_add)
+```
+
+Now we fit the interaction model with intercations between `log(sum)` and the trade group
+```{r}
+claims_lm_int <- lm(log(claims) ~ log(sum) * grp, data = claims)
+coefficients(claims_lm_int) |> print(width = 120)
+```
+
+```{r}
+model.matrix(claims_lm_int)[781:784, ] |> print(width = 120)
+```
+
+This model corresponds to the figure where we faceted on each trade group. 
 
 ## Exercise 2 - 2.1
 
