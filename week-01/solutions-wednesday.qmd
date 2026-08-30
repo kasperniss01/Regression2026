@@ -260,10 +260,51 @@ The formula from the previous exercise new yields
 \end{align*}
 as desired. 
 
+#### 6. Show that if $\mathbf{X}_1 - \mathbf{1} \bar X_1$ is perpendicular to the remaining columns in $\mathbf{X} - \mathbf{1} \bar X^\top$ , then
+$$
+(\hat\Sigma^{-1})_{11} = \frac{1}{\hat\sigma_1^2}.
+$$
+
+To distinguish columns from scalar entries, write the
+$j$th column of the design matrix as $\mathbf X_{\cdot j}$ (as done in the exercise description). There are $p - 1$
+remaining columns, indexed by $j = 2, \ldots, p$, so the orthogonality assumption
+can be written as
+
+$$
+(\mathbf X_{\cdot 1} - \mathbf1 \bar X_1)^\top
+(\mathbf X_{\cdot j}-\mathbf1 \bar X_j)=0,
+\qquad j= 2, \ldots, p.
+$$
+
+The vector $\hat\gamma\in\mathbb R^{p-1}$ contains the
+empirical covariances between the first predictor and the remaining predictors.
+More precisely, for $j = 2, \ldots, p$,
+
+$$
+\hat\gamma_{j-1}
+=\frac1n
+(\mathbf X_{\cdot1}-\mathbf1\bar X_1)^\top
+(\mathbf X_{\cdot j}-\mathbf1\bar X_j).
+$$
+
+Thus orthogonality implies $\hat\gamma=\mathbf0_{p-1}$. 
+
+The result from exercise 4 now yields
+\begin{align*}
+(\hat\Sigma^{-1})_{11} = \frac{1}{\hat\sigma_1^2 - \hat\gamma^\top (\hat\Sigma_{-1})^{-1} \hat\gamma} = \frac{1}{\hat\sigma_1^2}.
+\end{align*}
 
 
+#### 7. Interpret the results obtained in this exercise in terms of how the empirical variance of and empirical correlation between predictor variables affect the variances of the estimators $\hat \beta_i$ for $i = 1, \dots, p$.
 
-BEFORE WE FINISH MAKE SURE THAT EVERYTHING ABOUT BLOCK INVERSION IS WRITTEN CORRECTLY.
+For $p = 2$, recall that
+$$
+\operatorname{Var}(\hat \beta_1 \mid \mathbf{X}) = \frac{\sigma^2}{n} \frac{1}{\hat\sigma_1^2(1 - \widehat{\operatorname{corr}}(X_1, X_2)^2)}.
+$$
+
+This is decreasing in if $\hat\sigma_1^2$ increases, and it blows up whenever $\widehat{\operatorname{corr}}(X_1, X_2)$ approaches $1$ or $-1$. Thus, the (conditional) variance of $\hat \beta_1$ is very large if the empirical variance of $X_1$ is very small or if the predictors are very correlated (both positively and negatively). 
+
+For $p > 2$, we see from exercise 6 that the (conditional) variance of $\hat\beta_1$ is minimized when $\mathbf{X}_{\cdot 1} - \mathbf{1} \bar X_1$ is orthogonal to the other centered predictors, because $\hat\Sigma_{-1}$ is positive (semi?)definite and thus $\hat\gamma^\top (\hat\Sigma_{-1})^{-1} \hat\gamma \geq 0$ with equality when the orthogonality assumption holds. 
 
 ## Exercise 3 - 3.1
 
