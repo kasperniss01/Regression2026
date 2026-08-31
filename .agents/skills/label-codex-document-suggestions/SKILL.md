@@ -34,6 +34,13 @@ and place the labeled suggestion immediately after it. If Codex previously
 replaced user-authored content and the original is recoverable, restore the
 original before adding any new labeled suggestion.
 
+## Course source of truth
+
+For statistical definitions, assumptions, notation, and course-specific
+interpretations, consult [Regression with R](https://rwr.nrhstat.org) and treat
+it as the primary authority. Link to the relevant chapter or section when a
+document suggestion relies on it.
+
 Do not add the label to existing user-authored content, project configuration,
 data, or code files that are not themselves documents. Do not retroactively label
 earlier content unless the user asks.

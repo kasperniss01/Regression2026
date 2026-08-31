@@ -217,6 +217,7 @@ gridExtra::grid.arrange(
 
 Residuals plotted against fitted values (plot to left) shows the mean value assumption (A1) seems to be violated: the mean of the residuals are not zero. 
 
+
 #### 2. How do you get rid of the intercept via the formula specification?
 
 We get rid of the intercept by adding a `-1`to the model fit:
@@ -376,3 +377,67 @@ ggplot(data = formula_data, aes(x = fitted, y = resid)) +
   geom_smooth()
 ```
 
+<!-- Suggested by codex:
+
+### Does the model fit well?
+
+Following the definitions and diagnostic guidance in
+[Chapter 2 of *Regression with R*](https://rwr.nrhstat.org/2_linear.html), the
+final model `interact_model` fits these simulated data well relative to A1--A3.
+
+- **A1 (conditional mean):** The book defines A1 as
+  $\mathbb E(Y\mid X)=X^\top\beta$, equivalently
+  $\mathbb E(\varepsilon\mid X)=0$. Here the fitted formula contains the true
+  simulated mean
+  $$
+  \mu(x,z)=1(z=A)+\cos(x)+0.5\,1(z=B)\sin(x)
+  $$
+  exactly. The residual smoother is also approximately horizontal around zero,
+  with no important systematic pattern. Thus there is no notable evidence
+  against A1 for `interact_model`. By contrast, the initial model `y ~ x` omits
+  the nonlinear terms and the group structure, so its systematic residual
+  pattern indicates that A1 is not adequate for that model. Merely observing
+  that the sample residuals average to zero is not evidence for A1: with an
+  intercept, least squares residuals sum to zero by construction.
+
+- **A2 (constant conditional variance):** The book defines A2 as
+  $\mathbb V(Y\mid X)=\sigma^2$. The data were generated using
+  `rnorm(150, mu, 0.5)`, so the true conditional variance is
+  $\sigma^2=0.5^2=0.25$ for every value of $x$ and $z$. The residual-versus-fitted
+  plot shows no clear funnel shape or other substantial change in vertical
+  spread. Both the simulation mechanism and the diagnostic plot therefore
+  support A2.
+
+- **A3 (conditional normality):** The book defines A3 as
+  $Y\mid X\sim\mathcal N(X^\top\beta,\sigma^2)$. This holds by construction
+  because the response was generated with `rnorm()`. The standardized-residual
+  Q--Q plot is close to a straight line; small tail deviations are compatible
+  with sampling variation in a sample of 150 observations.
+
+The relevant diagnostic plots can be produced together as follows:
+
+```{r}
+#| message: false
+
+interact_diag <- augment(interact_model)
+
+gridExtra::grid.arrange(
+  ggplot(interact_diag, aes(.fitted, .resid)) +
+    geom_point(alpha = 0.4) +
+    geom_smooth(se = FALSE),
+
+  ggplot(interact_diag, aes(.resid)) +
+    geom_histogram(bins = 20),
+
+  ggplot(interact_diag, aes(sample = .std.resid)) +
+    geom_qq() +
+    geom_qq_line(),
+
+  ncol = 3
+)
+```
+
+Overall, `interact_model` is a good fit for the simulated data under A1--A3.
+This conclusion is unusually strong because the data-generating mechanism is
+known. For real data, as emphasized in the book, diagnostic plots can reveal
+important discrepancies but cannot prove that the assumptions are true. -->
