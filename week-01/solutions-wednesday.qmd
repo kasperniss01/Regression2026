@@ -54,8 +54,8 @@ p0 + geom_line(aes(y = fit.predict$fit), color = "blue")
 
 #### 2. Fit a piecewise affine function with the “bend” at 50% of the students taking the test. How can you formally test the linearity assumption in Question 1 within this larger model?
 
-Recall the hint: you want to fit a linear model with a model matrix 
-with three columns representing an intercept and two piecewise linear functions. You can, for instance, generate those piecewise linear functions by an ifelse() construction in the formula. Try different choices of columns. Is there one choice particularly suitable for testing the linearity assumption?
+Recall the hint: You want to fit a linear model with a model matrix 
+with three columns representing an intercept and two piecewise linear functions. You can, for instance, generate those piecewise linear functions by an ``ifelse()`` construction in the formula. Try different choices of columns. Is there one choice particularly suitable for testing the linearity assumption?
 
 We need to fit a piecewise affine mean function with a bend at $50\%$ students taking the test. That is, we have to fit a mean function with two slopes: one for values below $50\%$ and for for after $50\%$. 
 
@@ -73,7 +73,7 @@ m(x) &= \mathbf E(Y \mid X = x) \\
 &= \begin{cases} \beta_0 + \beta_1 x & x \leq 50 \\ (\beta_0 - 50\beta_2) + (\beta_1 + \beta_2) x & x > 50 \end{cases}.
 \end{align*}
 
-Note how the slope changes if $x > 50$ compared to if $x \leq 50$, or in other words, $\beta_2$ changes the slope. It is also continuous. 
+Note how the slope changes if $x > 50$ compared to if $x \leq 50$, or in other words, $\beta_2$ changes the slope. $m(x)$ is also continuous in $x$. 
 
 We define the two needed linear functions
 
@@ -82,7 +82,7 @@ f1 <- function(x) x
 f2 <- function(x) ifelse(x <= 50, 0, x - 50) # equivalently pmax(x - 50, 0)
 ```
 
-We visualize the ``bend'' implied by the the functions
+We visualize the 'bend' implied by the the functions
 ```{r}
 bend_data <- data.frame(
     percent = rep(sat$percent, 2), 
@@ -111,7 +111,7 @@ $$
 
 We see that the fitted slopes change from $-1.635$ below 50 to $0.652$ above 50.
 
-Setting $\beta_2 = 0$ removes the ``bend'' term and gives $m(x) = \beta_0 + \beta_1 x$ for every $x$, the model from Question 1. 
+Setting $\beta_2 = 0$ removes the 'bend' term and gives $m(x) = \beta_0 + \beta_1 x$ for every $x$, the model from Question 1. 
 
 We can also see this using the model matrices. The model matrix from Question 1 has columns 1) intercept; and 2) $x$. Since we add another column to the model matrix in this question, the model from Question 1 is nested in the current one (the column spaces are nested). 
 
@@ -119,12 +119,12 @@ Formally we test the hypothesis
 $$
 H_0: \beta_2 = 0
 $$
-against the alternative that $\beta_2$ is non-zero. We use an $F$-test
+against the alternative that $\beta_2$ is non-zero. We can test this directly with a $t$-test, by looking at the summary printed from the model above. We find $t = 5.806$ and $p=5.28\times10^{-7}$. Alternatively, we can use an $F$-test
 ```{r}
 anova(fit, piecewise_fit)
 ```
 
-The test gives $F=33.71$ and $p=5.28\times10^{-7}$. We therefore reject the hypothesis $H_0$, that is we reject that $\beta_2 = 0$, or in words: ``The data provides evidence for a change of slopes at 50''. 
+The test gives $F=33.71$ and $p=5.28\times10^{-7}$. Note that because the $H_0$ is just a one-dimensional parameter restriction, we have $F = t^2$ in this case, and that the $p$-values are the same. We reject the hypothesis $H_0$, that is we reject that $\beta_2 = 0$, or in words: The data provides evidence for a change of slopes at 50. 
 
 
 ## Exercise 2 - 2.5
