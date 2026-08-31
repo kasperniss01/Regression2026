@@ -230,6 +230,8 @@ p0 +
   geom_smooth(method = "lm", formula = y ~ x - 1)
 ```
 
+Alternatively, we could just use the model matrix that consists only of data. 
+
 #### 3. How can you check (numerically) that the two model matrices above span the same column space?
 
 Recall from (2.12) in the notes that the column space of $\mathbf{X}'$ is contained in the column space of $\mathbf{X}$ iff there exists a matrix $C$ such that
