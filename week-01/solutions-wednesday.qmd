@@ -14,6 +14,7 @@ theme_set(theme_bw()) # plotting theme is always theme_bw()
 ```
 
 ## Exercise 1 - 2.2
+
 This exercise is based on a dataset relating the mean verbal SAT scores for each of the 50 US states to the percentage of students taking the test. The data comes with the RwR package.
 
 ```{r}
@@ -111,11 +112,11 @@ $$
 
 We see that the fitted slopes change from $-1.635$ below 50 to $0.652$ above 50.
 
-Setting $\beta_2 = 0$ removes the 'bend' term and gives $m(x) = \beta_0 + \beta_1 x$ for every $x$, the model from Question 1. 
+Fitting the model without the parameter $\beta_2$, removes the 'bend' term and gives $m(x) = \beta_0 + \beta_1 x$ for every $x$, that is the model from Question 1. 
 
 We can also see this using the model matrices. The model matrix from Question 1 has columns 1) intercept; and 2) $x$. Since we add another column to the model matrix in this question, the model from Question 1 is nested in the current one (the column spaces are nested). 
 
-Formally we test the hypothesis
+To test the hypothesis of linearity, we can test hypothesis
 $$
 H_0: \beta_2 = 0
 $$
@@ -124,10 +125,11 @@ against the alternative that $\beta_2$ is non-zero. We can test this directly wi
 anova(fit, piecewise_fit)
 ```
 
-The test gives $F=33.71$ and $p=5.28\times10^{-7}$. Note that because the $H_0$ is just a one-dimensional parameter restriction, we have $F = t^2$ in this case, and that the $p$-values are the same. We reject the hypothesis $H_0$, that is we reject that $\beta_2 = 0$, or in words: The data provides evidence for a change of slopes at 50. 
+The test gives $F=33.71$ and $p=5.28\times10^{-7}$. Note that because $H_0$ is just a one-dimensional parameter restriction, we have $F = t^2$ in this case, and that the $p$-values are the same. We reject the hypothesis $H_0$, that is we reject that $\beta_2 = 0$, or in words: The data provides evidence for a change of slopes at 50. 
 
 
 ## Exercise 2 - 2.5
+
 This exercise relates the empirical correlations between the predictor variables to the variance of the least squares estimator. The setup is as follows. The matrix $\mathbf{X}$ denotes an $n \times p$ matrix of predictor variables, $\mathbf{1}$ denotes an  $n$-dimensional column vector of ones and $\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}$ denotes the $n \times (p + 1)$ matrix with the first column being $\mathbf{1}$ and the remaining $n \times p$ block being $\mathbf{X}$. We let
 $$
 \bar X = \frac{1}{n} \mathbf{X}^\top \mathbf{1}
@@ -139,6 +141,7 @@ denote the $p$-dimensional vector of mean values for the predictor (the empirica
 denote the empirical covariance matrix. It is assumed that $\hat \Sigma$ is invertible.
 
 #### 1. Show that
+
 $$
 n \hat \Sigma = \mathbf{X}^\top \mathbf{X} - n\bar X \bar X^\top.
 $$
@@ -162,15 +165,16 @@ n\hat\Sigma
 \end{align*}
 
 #### 2. Use block matrix inversion to show that
+
 $$
 \begin{pmatrix} \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}^\top \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix} \end{pmatrix}^{-1} = \begin{pmatrix} \ast & \ast \\ \ast & \frac{1}{n}\hat \Sigma^{-1} \end{pmatrix}.
 $$
 
 First we recall the block matrix inversion formula
 $$
-P = \begin{pmatrix} A & B \\ C & D \end{pmatrix}^{-1} = \begin{pmatrix} \ast & \ast \\ \ast & (D - C A^{-1} B)^{-1} \end{pmatrix},
+P^{-1} = \begin{pmatrix} A & B \\ C & D \end{pmatrix}^{-1} = \begin{pmatrix} \ast & \ast \\ \ast & (D - C A^{-1} B)^{-1} \end{pmatrix},
 $$
-which holds whenever $A$ is invertible, and the Schur complement of $A$ in $P$ is invertible.
+which holds whenever $A$ is invertible, and the Schur complement of $A$ in $P$, $D - C A^{-1} B$, is invertible.
 
 Now let $\mathbf{Z} = \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}$. Then
 \begin{align*}
@@ -178,24 +182,19 @@ Now let $\mathbf{Z} = \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}$. Th
 &= \begin{pmatrix} \mathbf{1}^\top \mathbf{1} & \mathbf{1}^\top \mathbf{X} \\ \mathbf{X}^\top \mathbf{1} & \mathbf{X}^\top \mathbf{X} \end{pmatrix} \\
 &= \begin{pmatrix} n & \mathbf{1}^\top \mathbf{X} \\ \mathbf{X}^\top \mathbf{1} & \mathbf{X}^\top \mathbf{X} \end{pmatrix}.
 \end{align*}
-
-
-Thus, using block inversion, recalling the definition of $\bar X$, and the result from the previous exercise, we find that
+We have that
 \begin{align*}
-\begin{pmatrix} \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}^\top \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix} \end{pmatrix}^{-1} &= (\mathbf{Z}^\top \mathbf{Z})^{-1} \\
-&= (\mathbf{X}^\top \mathbf{X} - \mathbf{X}^\top \mathbf{1} \frac{1}{n} \mathbf{1}^\top \mathbf{X})^{-1} \\
-&= (\mathbf{X}^\top \mathbf{X} - n \bar X \frac{1}{n} \bar X^\top)^{-1} \\
-&= (\mathbf{X}^\top \mathbf{X} - n \bar X \bar X^\top)^{-1} \\
-&=\frac{1}{n} \hat\Sigma^{-1}.
+\mathbf{X}^\top \mathbf{X} - \mathbf{X}^\top \mathbf{1} \frac{1}{n} \mathbf{1}^\top \mathbf{X} &= \mathbf{X}^\top \mathbf{X} - (n \bar X) \frac{1}{n} (n \bar X^\top)\\
+&= \mathbf{X}^\top \mathbf{X} - n \bar X \bar X^\top \\
+&= n \hat\Sigma.
 \end{align*}
-
-We have to assume that we have observed some data, that is $n>0$ so that $n$ is invertible and we have also assumed that $\hat \Sigma$ is invertible, so the block inversion result can be applied and the above calculation stands true. 
+As $\hat\Sigma$ is assumed invertible and $n \geq 1$, we can apply block matrix inversion, to obtain the desired.
 
 #### 3. Show that if we fit a linear model with an intercept (which is denoted $\beta_0$) using the least squares estimator, then the variance of $\hat\beta_i$, conditionally on $\mathbf{X}$, for $i = 1, \dots, p$ is $\frac{\sigma^2}{n}(\hat\Sigma^{-1})_{ii}$
 
 Write $\beta = (\beta_0, \beta_1, \dots, \beta_p)$ such that the first coordinate corresponds to the intercept. The belonging model matrix is $\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}$. 
 
-Under the assumption of \textbf{A1}, \textbf{A2}, \textbf{A4}, and that $\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}$ has full rank, Theorem 2.2 provides the variance of the ordinary least squares estimator
+Under the assumption of ***A1***, ***A2***, ***A4***, and that $\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}$ has full rank, Theorem 2.2 provides the variance of the ordinary least squares estimator
 $$
 \operatorname{Var}(\hat\beta \mid \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}) = \sigma^2 (\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}^\top \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix})^{-1}. 
 $$
@@ -220,43 +219,51 @@ $$
 $$
 
 #### 4. Use block inversion (again) to show that
+
 $$
 (\hat\Sigma_{11})^{-1} = \frac{1}{\hat\sigma_1^2 - \hat\gamma^\top (\hat\Sigma_{-1})^{-1} \hat\gamma}. 
 $$
 
-We have to assume that $\hat\sigma_1 \neq 0$ to apply the block inversion formula. Because 
 
+In the notation used in exercise 2, it holds that whenever $D$ is invertible, $P$ is invertible iff the Schur-complement of $D$ in $P$, $A-BD^{-1}C$ is invertible, and we have
+$$
+P^{-1} = \begin{pmatrix} A & B \\ C & D \end{pmatrix}^{-1} = \begin{pmatrix} (A-BD^{-1}C)^{-1} & \ast \\ \ast & \ast \end{pmatrix},
+$$
+Since $\hat \Sigma$ is assumed invertible, it follows directly that
 
-Furtermore, we also need $\hat\sigma_1^2 - \hat\gamma^\top (\hat\Sigma_{-1})^{-1} \hat\gamma$ to be invertible, which is equivalent to $\hat\sigma_1^2 \neq \hat\gamma^\top (\hat\Sigma_{-1})^{-1} \hat\gamma$ -- can this be shown or do we have to assume that?. 
-
-Assuming that, block inversion applied to the block-decomposition of $\Sigma$ given above yields the result.
+$$
+(\hat\Sigma_{11})^{-1} = \frac{1}{\hat\sigma_1^2 - \hat\gamma^\top (\hat\Sigma_{-1})^{-1} \hat\gamma}. 
+$$
 
 #### 5. Show that in the case $p = 2$, the formula above reduces to
+
 $$
 (\hat \Sigma^{-1})_{11} = \frac{1}{\hat\sigma_1^2 (1 - \widehat{\operatorname{corr}}(X_1, X_2)^2)}.
 $$
 
-Recall the definition of the correlation between two random variables (with finite variance) $X$ and $Y$
+Recall the definition of the correlation between two random variables (with finite variance) $X_1$ and $X_2$
 $$
-\operatorname{corr}(X, Y) = \frac{\operatorname{cov}(X, Y)}{\sqrt{\operatorname{Var}(X) \operatorname{Var}(Y)}}
+\operatorname{corr}(X_1, X_2) = \frac{\operatorname{cov}(X_1, X_2)}{\sqrt{\operatorname{Var}(X_1) \operatorname{Var}(X_2)}}
 $$
 whereby
 $$
-\operatorname{corr}(X, Y)^2 = \frac{\operatorname{cov}(X, Y)^2}{\operatorname{Var}(X) \operatorname{Var}(Y)}.
+\operatorname{corr}(X_1, X_2)^2 = \frac{\operatorname{cov}(X_1, X_2)^2}{\operatorname{Var}(X_1) \operatorname{Var}(X_2)},
+$$
+with the plug-in estimator,
+$$
+\widehat{\operatorname{corr}}(X_1, X_2) = \frac{\widehat{\operatorname{cov}}(X_1, X_2)^2}{\hat{\sigma}_1^2 \hat{\sigma}_2^2}
 $$
 
-If $p = 2$ then there are two (univariate) predictors $X_1$ and $X_2$, and $\hat\Sigma_{-1} = \operatorname{Var}(X_2)$ and $\hat \gamma = \widehat{\operatorname{cor}}(X_1, X_2)$. Also, $\operatorname{Var}{X_1} = \sigma_1^2$ and $\operatorname{Var}{X_2} = \sigma_2^2$ and they have empirical variances denoted by a $\hat\cdot$, and we wil use the $\operatorname{Var}$ and $\sigma^2$ interchangeably. 
-
-The formula from the previous exercise new yields
+If $p = 2$ then there are two (univariate) predictors $X_1$ and $X_2$, and $\hat{\Sigma}_{-1} = \hat{\sigma}_2^2$ and $\hat \gamma = \widehat{\operatorname{cov}}(X_1, X_2)$. The formula from the previous exercise now yields
 \begin{align*}
-(\hat\Sigma_{-1})_{11} &= \frac{1}{\hat\sigma_1^2 - \widehat{\operatorname{cov}}(X_1, X_2) \frac{1}{\widehat{\operatorname{Var}}(X_2)}\widehat{\operatorname{cov}}(X_1, X_2)} \\
-&= \frac{1}{\hat\sigma_1^2 - \frac{\widehat{\operatorname{cov}}(X_1, X_2)}{\widehat{{\operatorname{Var}}(X_2)}}} \\
-&= \frac{1}{\hat\sigma_1^2 (1 - \frac{\widehat{\operatorname{cov}}(X_1, X_2)}{\widehat{\operatorname{Var}}(X_2)} \frac{1}{\hat\sigma_1^2})} \\
+(\hat\Sigma_{-1})_{11} &= \frac{1}{\hat\sigma_1^2 - \widehat{\operatorname{cov}}(X_1, X_2) \frac{1}{\hat{\sigma}^2_2}\widehat{\operatorname{cov}}(X_1, X_2)} \\
+&= \frac{1}{\hat\sigma_1^2 (1 - \frac{\widehat{\operatorname{cov}}(X_1, X_2)^2}{\hat{\sigma}^2_2 \hat{\sigma}^1_2 } )} \\
 &= \frac{1}{\hat\sigma_1^2 ( 1 - \widehat{\operatorname{corr}}(X_1, X_2)^2)},
 \end{align*}
 as desired. 
 
 #### 6. Show that if $\mathbf{X}_1 - \mathbf{1} \bar X_1$ is perpendicular to the remaining columns in $\mathbf{X} - \mathbf{1} \bar X^\top$ , then
+
 $$
 (\hat\Sigma^{-1})_{11} = \frac{1}{\hat\sigma_1^2}.
 $$
@@ -300,7 +307,7 @@ $$
 
 This is decreasing in if $\hat\sigma_1^2$ increases, and it blows up whenever $\widehat{\operatorname{corr}}(X_1, X_2)$ approaches $1$ or $-1$. Thus, the (conditional) variance of $\hat \beta_1$ is very large if the empirical variance of $X_1$ is very small or if the predictors are very correlated (both positively and negatively). 
 
-For $p > 2$, we see from exercise 6 that the (conditional) variance of $\hat\beta_1$ is minimized when $\mathbf{X}_{\cdot 1} - \mathbf{1} \bar X_1$ is orthogonal to the other centered predictors, because $\hat\Sigma_{-1}$ is positive (semi?)definite and thus $\hat\gamma^\top (\hat\Sigma_{-1})^{-1} \hat\gamma \geq 0$ with equality when the orthogonality assumption holds. 
+For $p > 2$, we see from exercise 6 that the (conditional) variance of $\hat\beta_1$ is minimized when $\mathbf{X}_{\cdot 1} - \mathbf{1} \bar X_1$ is orthogonal to the other centered predictors, because $\hat\Sigma_{-1}$ is positive semi-definite and thus $\hat\gamma^\top (\hat\Sigma_{-1})^{-1} \hat\gamma \geq 0$ with equality when the orthogonality assumption holds. 
 
 ## Exercise 3 - 3.1
 
