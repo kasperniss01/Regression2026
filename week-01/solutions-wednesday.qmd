@@ -27,7 +27,6 @@ We take a brief look at the dataset
 summary(sat)
 p0 <- ggplot(data = sat, aes(x = percent, y = verbalScore)) + 
     geom_point()
-
 p0
 ```
 
@@ -43,17 +42,14 @@ summary(fit)
 We visiualize the fitted linear regression model
 
 ```{r}
-p0 + geom_smooth(method = "lm", formula = y ~ x)
+p0 + geom_smooth(method = "lm", formula = y ~ x, se = FALSE)
 ```
 
 Also an alternative solutions using `predict`, i.e. predicting values from the model
 ```{r}
-fit.predict <- predict(fit, newdata = sat, interval = "confidence", level = 0.95) |> 
-    as.data.frame()
+fit.predict <- tibble(fit = predict(fit, newdata = sat))
 
-p0 + geom_line(aes(y = fit.predict$fit), color = "blue") + 
-    geom_ribbon(aes(ymin = fit.predict$lwr, ymax = fit.predict$upr), 
-    alpha = 0.2)
+p0 + geom_line(aes(y = fit.predict$fit), color = "blue") 
 ```
 
 #### 2. Fit a piecewise affine function with the “bend” at 50% of the students taking the test. How can you formally test the linearity assumption in Question 1 within this larger model?
