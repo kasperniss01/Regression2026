@@ -1,6 +1,6 @@
 ---
 title: "Week 1: Monday Solutions"
-author: "Kasper Niss"
+author: "Kasper Niss, Asbjørn Risom"
 ---
 
 ## Exercise 1 - Install RwR package and reproduce results
@@ -24,13 +24,16 @@ remotes::install_github(
 Load the installed (and other relevant) package(s):
 
 ```{r}
+#| echo: true
+#| message: false
+#| warning: false
 library(RwR)
 library(ggplot2)
 library(tibble)
 library(broom)
 library(splines)
 library(gridExtra)
-
+library(R.utils)
 theme_set(theme_bw()) # plotting theme is always theme_bw()
 ```
 
@@ -229,40 +232,38 @@ p0 +
 
 #### 3. How can you check (numerically) that the two model matrices above span the same column space?
 
-We can "add" a factor to the formula and also change the baseline of the factor
-
+Recall from (2.12) in the notes that the column space of $\mathbf{X}'$ is contained in the column space of $\mathbf{X}$ iff there exists a matrix $C$ such that
+$$
+\mathbf{X}\mathbf{C} = \mathbf{X}'
+$$
+This is equivalent to 
+\begin{equation*}
+\mathbf{X}^{\top}\mathbf{X}\mathbf{C} = \mathbf{X}^{\top}\mathbf{X}'
+\end{equation*}
+Note that if $X$ has full rank, the matrix $C$ is given by
+$$
+\mathbf{C} = \left(\mathbf{X}^{\top}\mathbf{X}\right)^{-1} \mathbf{X}^{\top}\mathbf{X}',
+$$
+which explains the result from Exercise 2.3. In the any case, we can solve linear equations via the `` R`` funcition ``solve`` function.
 ```{r}
 X1 <- model.matrix(y ~ x + z, formula_data)
-X1 |> head()
 
 contrasts(formula_data$z) <- contr.treatment(levels(formula_data$z), base = 3)
 X2 <- model.matrix(y ~ x + z, formula_data)
-X2 |> head()
+
+check_equality_of_col_space <- function(X1,X2){
+  C_mat <- solve(t(X2) %*% X2, t(X2) %*% X1) 
+  res_sq1 <- sum((X2 %*% C_mat - X1)^2)
+  
+  C_mat <- solve(t(X1) %*% X1, t(X1) %*% X2)
+  res_sq2 <- sum((X1 %*% C_mat - X2)^2)
+  
+  isZero(res_sq1) && isZero(res_sq2)
+}
+check_equality_of_col_space(X1,X2)
+
 ```
 
-Note how the last column changes name. 
-
-To check whether or not X2 has the same column space as X1, we can append the columns of X2 to X1 and see if the column rank changes. 
-
-```{r}
-qr(X1)$rank
-qr(cbind(X1, X2))$rank #check if X2 increases the column space of X1
-
-qr(X2)$rank
-qr(cbind(X2, X1))$rank #check if X1 increases the column space of X2
-```
-
-We could also compare their projections onto the column space
-```{r}
-Q_X1 <- qr.Q(qr(X1))
-Q_X2 <- qr.Q(qr(X2))
-
-#projections
-P_X1 <- Q_X1 %*% t(Q_X1) 
-P_X2 <- Q_X2 %*% t(Q_X2)
-
-max(abs(P_X1 - P_X2))
-```
 
 #### 4. Are the two models below identical? That is, do the columns of the two model matrices span the same column space?
 
@@ -275,26 +276,11 @@ X2 <- model.matrix(y ~ x * z, formula_data)
 X2 |> head()
 ```
 
-We proceed as above by checking if the column rank increases (and if their projections are the same)
+We use the function from above to check if the column spaces are equal
 
 ```{r}
-qr(X1)$rank
-qr(cbind(X1, X2))$rank #check if X2 increases the column space of X1
-
-qr(X2)$rank
-qr(cbind(X2, X1))$rank #check if X1 increases the column space of X2
-
-Q_X1 <- qr.Q(qr(X1))
-Q_X2 <- qr.Q(qr(X2))
-
-#projections
-P_X1 <- Q_X1 %*% t(Q_X1) 
-P_X2 <- Q_X2 %*% t(Q_X2)
-
-max(abs(P_X1 - P_X2))
+check_equality_of_col_space(X1,X2)
 ```
-
-It doesn't (and the projections are the same), so they span the same column space. 
 
 #### 5. Run the following code and explain what it returns.
 
@@ -310,7 +296,7 @@ Recall that `z * sin(x) = z + sin(x) + z:sin(x)` where the latter is the interac
 
 We allow for different intercepts in the group with the factors and the coefficient of `sin(x)` can change for each group. 
 
-#### 6. Fit the model specified by the formula y ~ cos(x) + z * sin(x) to the simulated data, explain the parameter estimates you get and reproduce Figure 2.7.
+#### 6. Fit the model specified by the formula ``y ~ cos(x) + z * sin(x)`` to the simulated data, explain the parameter estimates you get and reproduce Figure 2.7.
 
 ```{r}
 interact_model <- lm(y ~ cos(x) + z * sin(x), data = formula_data)
