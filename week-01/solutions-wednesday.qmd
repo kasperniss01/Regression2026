@@ -9,6 +9,7 @@ library(tibble)
 library(broom)
 library(splines)
 library(gridExtra)
+library(dplyr)
 
 theme_set(theme_bw()) # plotting theme is always theme_bw()
 ```
@@ -311,4 +312,171 @@ For $p > 2$, we see from exercise 6 that the (conditional) variance of $\hat\bet
 
 ## Exercise 3 - 3.1
 
-Add the exercise and its solution here.
+We load the dataset from the `RwR` package and discard the unemployed from the dataset. As per the exercise hint, we also collapse the respondents with 3 or more children into one group. We do this by adding people with more than 3 children to the 3 children group. We choose to retain children as numeric, rather than creating a factor.
+
+```{r}
+data(wage, package = "RwR")
+wage_employed <- as_tibble(wage) |> filter(hours>0) |> mutate(children = pmin(3,children))
+wage_unemployed <- as_tibble(wage) |> filter(hours==0) |> mutate(children = pmin(3,children))
+
+```
+
+#### 1. Fit and report a linear, additive model of the mean wage given some of the other variables using data for the employed respondents only.
+
+We fit a linear additive model of mean using all other covariates and report parameter estimates
+
+```{r}
+lin_mod <- lm(wage ~ . , data = wage_employed)
+tidy(lin_mod) |>
+  knitr::kable()
+```
+We see that (perhaps unsurprisingly) there is a positive association between hours worked and wage. There is also a positive association both between the number of children and wage, as well as age and wage. The expected wage is lowest for people with who graduated high-school but not college, followed by people without a high-school diploma and largest for people with a college degree. We can also use the `drop1` function to drop one of the predictors.
+
+```{r}
+drop1(lin_mod, test = "F") |> 
+  tidy() |> 
+  arrange(p.value, desc(statistic)) |>
+  filter(term != "<none>") |>
+  select(-AIC) |>
+  knitr::kable()
+```
+
+It seems like everything except for education is a fairly strong predictor.
+
+#### 2.
+
+We do model diagnostics
+```{r}
+#| message: false
+#| warning: false
+data_diag1 <- augment(lin_mod)
+p1 <- ggplot(data_diag1, aes(.fitted, .std.resid)) +
+  geom_point() + geom_smooth(formula = y ~ x) +
+  xlab("Fitted Values") +
+  ylab("Standardized Residuals")
+
+p2 <- ggplot(data_diag1, aes(sample = .std.resid)) +
+  geom_qq() + geom_abline() +
+  xlab("Theoretical quantiles") +
+  ylab("")
+
+p3 <- ggplot(data_diag1, aes(hours, .std.resid)) +
+  geom_point() + geom_smooth(formula = y ~ x) +
+  xlab("Hours") +
+  ylab("Standardized Residuals")
+
+p4 <- ggplot(data_diag1, aes(age, .std.resid)) +
+  geom_point() + geom_smooth(formula = y ~ x) +
+  xlab("Age") +
+  ylab("Standardized Residuals")
+
+
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+The mean value structure is not entirely captured for both the small and the large fitted values. This could be the case, as there seems to be a non-linear effect of wage, and to a lesser extent hours worked. Overall, the qq-plot looks ok.
+
+#### 3.
+
+We will here focus on modelling the seemingly non-linear effect of age better. The above residual plot suggests that we can add $\text{age}^2$ and $\text{age}^3$ to better capture the non-linear effect. Beware that this type of polynomial regression typically extrapolates poorly outside the data range. In chapter 7, we will see that splines are typically more appropriate for handling non-linearities.
+
+```{r}
+#| message: false
+#| warning: false
+
+cubic_mod <- lm(wage ~ age + I(age^2) + I(age^3) + hours + educ + children , data = wage_employed)
+
+
+data_diag_cubic <- augment(cubic_mod)
+p1 <- ggplot(data_diag_cubic, aes(.fitted, .std.resid)) +
+  geom_point() + geom_smooth(formula = y ~ x) +
+  xlab("Fitted Values") +
+  ylab("Standardized Residuals")
+
+p2 <- ggplot(data_diag_cubic, aes(sample = .std.resid)) +
+  geom_qq() + geom_abline() +
+  xlab("Theoretical quantiles") +
+  ylab("")
+
+p3 <- ggplot(data_diag_cubic, aes(hours, .std.resid)) +
+  geom_point() + geom_smooth(formula = y ~ x) +
+  xlab("Hours") +
+  ylab("Standardized Residuals")
+
+p4 <- ggplot(data_diag_cubic, aes(age, .std.resid)) +
+  geom_point() + geom_smooth(formula = y ~ x) +
+  xlab("Age") +
+  ylab("Standardized Residuals")
+
+
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+
+```
+
+Since the linear model is nested in the cubic model, we can compare the two models via an $F$-test.
+```{r}
+anova(cubic_mod,lin_mod) |>
+  knitr::kable()
+```
+We reject the null hypothesis of a linear effect in age against the model with a cubic effect of age. The cubic and quadratic term on age, makes interpreting the estimated parameters difficult. Instead, we opt for plotting the predictions of the model for varying levels of age, for an individual who works the average number of hours, has two children and a high-school diploma. As the other than age covariates enter the model linearly, varying these simply correspond to additive shifts in the predicted values.
+
+```{r}
+age_seq <- seq(min(wage_employed$age), max(wage_employed$age), by = 0.01)
+df_pred <- tibble(age = age_seq, educ = factor(2), hours = mean(wage$hours), children = 2) |>
+  mutate(predicted = predict(cubic_mod, newdata = cur_data()))
+
+ggplot(df_pred) +
+  geom_line(aes(age, predicted), color = "blue") +
+  xlab("Age") + 
+  ylab("Predicted Wage")
+
+```
+Note that this is just one way of visualing the model, and there are many other possible choices.
+
+#### 4.
+
+The model we have chosen is actually not particularly well-suited for predicting the wage distribution for the unemployed respondents, should they get a job. The reasons for this, is that we include hours worked in the model, which will also increase (from 0) if the respondents are no longer unemployed. We here take a pragmatic approach, and assume that if the respondents finds employment they will work the average number of hours that the employed people work. Be aware that this is an assumption that can not be verified from data. We plot (estimated) densities for the predicted wage distributions among the unemployed and the actual wage distribution in employed group. We cap the predicted wage at 0. 
+
+```{r}
+mean_hrs_employed <- mean(wage_employed$hours)
+
+dist_unemployed <- wage_unemployed |> 
+  mutate(hours = mean_hrs_employed) |> 
+  mutate(pred_wage = pmax(0,predict(cubic_mod, cur_data())), Employed = FALSE) |>
+  select(wage = pred_wage,Employed)
+
+dist_employed <- wage_employed |>
+  mutate(Employed = TRUE) |>
+  select(wage,Employed)
+
+bind_rows(dist_employed, dist_unemployed) |>
+  ggplot(aes(wage, color = Employed)) + 
+  geom_density()
+
+
+```
+We find a much smaller spread in the predicted wages compared to the realised wages, and that we in expect that the unemployed would earn more on average than the ones who are currently employed. This may not seem particularly realistic, and may just be an artefact of the fact that we used the mean hours worked in the employed group for the hours worked by the unemployed. We could also fit the same model without hours worked,
+
+```{r}
+cubic_mod_no_hrs <- lm(wage ~ age + I(age^2) + I(age^3) + educ + children , data = wage_employed)
+
+dist_unemployed <- wage_unemployed |> 
+  mutate(pred_wage = pmax(0,predict(cubic_mod_no_hrs, cur_data())), Employed = FALSE) |>
+  select(wage = pred_wage,Employed)
+
+dist_employed <- wage_employed |>
+  mutate(Employed = TRUE) |>
+  select(wage,Employed)
+
+bind_rows(dist_employed, dist_unemployed) |>
+  ggplot(aes(wage, color = Employed)) + 
+  geom_density()
+
+
+```
+And now we obtain the opposite conclusion w.r.t. mean wage.
+
+
+
+
+
