@@ -1,5 +1,6 @@
 ---
 title: "Week 1: Wednesday Solutions"
+author: "Kasper Niss and Asbjørn Risom"
 ---
 
 ```{r, include = FALSE}
@@ -47,7 +48,7 @@ We visiualize the fitted linear regression model
 p0 + geom_smooth(method = "lm", formula = y ~ x, se = FALSE)
 ```
 
-Also an alternative solutions using `predict`, i.e. predicting values from the model
+Also an alternative solution using `predict`, i.e. predicting values from the model
 ```{r}
 fit.predict <- tibble(fit = predict(fit, newdata = sat))
 
@@ -63,7 +64,7 @@ We need to fit a piecewise affine mean function with a bend at $50\%$ students t
 
 We construct the model matrix with three columns: 1) the intercept; 2) the column $x$; and 3) the column $\operatorname{max}(x - 50, 0)$.
 
-So if $x \leq 50$ then the third column is $0$ and there is only contribution from the intercept and the second column and if $x > 50$ then there is another contribution to the slope(corresponding to a change in the slope). 
+So if $x \leq 50$ then the third column is $0$ and there is only contribution from the intercept and the second column and if $x > 50$ then there is another contribution to the slope (corresponding to a (potential) change in the slope). 
 
 It corresponds to the mean function
 \begin{align*}
@@ -75,7 +76,7 @@ m(x) &= \mathbf E(Y \mid X = x) \\
 &= \begin{cases} \beta_0 + \beta_1 x & x \leq 50 \\ (\beta_0 - 50\beta_2) + (\beta_1 + \beta_2) x & x > 50 \end{cases}.
 \end{align*}
 
-Note how the slope changes if $x > 50$ compared to if $x \leq 50$, or in other words, $\beta_2$ changes the slope. $m(x)$ is also continuous in $x$. 
+Note how the slope changes if $x > 50$ compared to if $x \leq 50$.
 
 We define the two needed linear functions
 
@@ -117,11 +118,13 @@ Fitting the model without the parameter $\beta_2$, removes the 'bend' term and g
 
 We can also see this using the model matrices. The model matrix from Question 1 has columns 1) intercept; and 2) $x$. Since we add another column to the model matrix in this question, the model from Question 1 is nested in the current one (the column spaces are nested). 
 
-To test the hypothesis of linearity, we can test hypothesis
+To test the hypothesis of linearity, we can test the hypothesis
 $$
 H_0: \beta_2 = 0
 $$
-against the alternative that $\beta_2$ is non-zero. We can test this directly with a $t$-test, by looking at the summary printed from the model above. We find $t = 5.806$ and $p=5.28\times10^{-7}$. Alternatively, we can use an $F$-test
+against the alternative that $\beta_2$ is non-zero. We can test this directly with a $t$-test, by looking at the summary printed from the model above. We find $t = 5.806$ and $p=5.28\times10^{-7}$, and thus data indicate there should be a bend. 
+
+Alternatively, we can use an $F$-test (because the models are nested)
 ```{r}
 anova(fit, piecewise_fit)
 ```
@@ -177,9 +180,9 @@ P^{-1} = \begin{pmatrix} A & B \\ C & D \end{pmatrix}^{-1} = \begin{pmatrix} \as
 $$
 which holds whenever $A$ is invertible, and the Schur complement of $A$ in $P$, $D - C A^{-1} B$, is invertible.
 
-Now let $\mathbf{Z} = \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}$. Then
+We have
 \begin{align*}
-\mathbf{Z}^\top \mathbf{Z} &= \begin{pmatrix} \mathbf{1}^\top \\ \mathbf{X}^\top \end{pmatrix} \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix} \\
+\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}^\top \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix} &= \begin{pmatrix} \mathbf{1}^\top \\ \mathbf{X}^\top \end{pmatrix} \begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix} \\
 &= \begin{pmatrix} \mathbf{1}^\top \mathbf{1} & \mathbf{1}^\top \mathbf{X} \\ \mathbf{X}^\top \mathbf{1} & \mathbf{X}^\top \mathbf{X} \end{pmatrix} \\
 &= \begin{pmatrix} n & \mathbf{1}^\top \mathbf{X} \\ \mathbf{X}^\top \mathbf{1} & \mathbf{X}^\top \mathbf{X} \end{pmatrix}.
 \end{align*}
@@ -210,7 +213,7 @@ $$
 \operatorname{Var}(\hat\beta_i \mid \begin{pmatrix} \mathbf{1} & \mathbf{X}\end{pmatrix}) = \frac{\sigma^2}{n} (\hat \Sigma^{-1})_{ii}.
 $$
 
-Note that it does not matter whether or not we condition on $\mathbf{X}$ or $\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}$ since $\sigma(\mathbf{X}) = \sigma(\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix})$. This proves the result. 
+Note that it does not matter whether we condition on $\mathbf{X}$ or $\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix}$ since $\sigma(\mathbf{X}) = \sigma(\begin{pmatrix} \mathbf{1} & \mathbf{X} \end{pmatrix})$. This proves the result. 
 
 Let $\hat\Sigma_{-1}$ be the empirical covariance matrix with the first row and column removed. Furthermore, write $\hat\Sigma$ in block form as
 $$
@@ -226,9 +229,9 @@ $$
 $$
 
 
-In the notation used in exercise 2, it holds that whenever $D$ is invertible, $P$ is invertible iff the Schur-complement of $D$ in $P$, $A-BD^{-1}C$ is invertible, and we have
+In the notation used in exercise 2, it holds that whenever $D$ is invertible, $P$ is invertible if and only if the Schur-complement of $D$ in $P$, $A-BD^{-1}C$ is invertible, and we have
 $$
-P^{-1} = \begin{pmatrix} A & B \\ C & D \end{pmatrix}^{-1} = \begin{pmatrix} (A-BD^{-1}C)^{-1} & \ast \\ \ast & \ast \end{pmatrix},
+P^{-1} = \begin{pmatrix} A & B \\ C & D \end{pmatrix}^{-1} = \begin{pmatrix} (A-BD^{-1}C)^{-1} & \ast \\ \ast & \ast \end{pmatrix}.
 $$
 Since $\hat \Sigma$ is assumed invertible, it follows directly that
 
@@ -252,7 +255,7 @@ $$
 $$
 with the plug-in estimator,
 $$
-\widehat{\operatorname{corr}}(X_1, X_2) = \frac{\widehat{\operatorname{cov}}(X_1, X_2)^2}{\hat{\sigma}_1^2 \hat{\sigma}_2^2}
+\widehat{\operatorname{corr}}(X_1, X_2) = \frac{\widehat{\operatorname{cov}}(X_1, X_2)^2}{\hat{\sigma}_1^2 \hat{\sigma}_2^2}.
 $$
 
 If $p = 2$ then there are two (univariate) predictors $X_1$ and $X_2$, and $\hat{\Sigma}_{-1} = \hat{\sigma}_2^2$ and $\hat \gamma = \widehat{\operatorname{cov}}(X_1, X_2)$. The formula from the previous exercise now yields
@@ -309,6 +312,8 @@ $$
 This is decreasing in if $\hat\sigma_1^2$ increases, and it blows up whenever $\widehat{\operatorname{corr}}(X_1, X_2)$ approaches $1$ or $-1$. Thus, the (conditional) variance of $\hat \beta_1$ is very large if the empirical variance of $X_1$ is very small or if the predictors are very correlated (both positively and negatively). 
 
 For $p > 2$, we see from exercise 6 that the (conditional) variance of $\hat\beta_1$ is minimized when $\mathbf{X}_{\cdot 1} - \mathbf{1} \bar X_1$ is orthogonal to the other centered predictors, because $\hat\Sigma_{-1}$ is positive semi-definite and thus $\hat\gamma^\top (\hat\Sigma_{-1})^{-1} \hat\gamma \geq 0$ with equality when the orthogonality assumption holds. 
+
+For the remaining coordinates of $\beta$, we can simply permute both the coefficient vector $\beta$ and the model matrix $\mathbf{X}$ such that the variance of $\hat\beta_j$ is minimized when $\mathbf{X}_{\cdot j} - \mathbf{1} \bar X_j$ is orthogonal to the other centered predictors. 
 
 ## Exercise 3 - 3.1
 
