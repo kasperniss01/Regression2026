@@ -92,7 +92,7 @@ We plot the variance function $\mathcal{V}(\mu)$ for varying $\mu$.
 
 ```{r}
 mean_value <- function(theta){
-  1/cosh(theta) - 1/theta
+  cosh(theta) / sinh(theta) - 1/theta
 } 
 var_fun <- function(theta){
   1/theta^2 - 1/sinh(theta)^2
