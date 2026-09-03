@@ -233,7 +233,7 @@ $$
 Since $\hat \Sigma$ is assumed invertible, it follows directly that
 
 $$
-(\hat\Sigma_{11})^{-1} = \frac{1}{\hat\sigma_1^2 - \hat\gamma^\top (\hat\Sigma_{-1})^{-1} \hat\gamma}. 
+(\hat\Sigma)^{-1}_{11} = \frac{1}{\hat\sigma_1^2 - \hat\gamma^\top (\hat\Sigma_{-1})^{-1} \hat\gamma}. 
 $$
 
 #### 5. Show that in the case $p = 2$, the formula above reduces to
