@@ -1,7 +1,33 @@
 ---
 title: "Week 2: Monday Solutions"
+author: Kasper Niss, Asbjørn Risom
 ---
 
-## Exercise 1
+## Exercise 4.1
 
-Add the exercise and its solution here.
+The probability mass function for any probability measure on $\{0,1\}$ can be written as
+$$
+p^y (1-p)^{1-y}
+$$
+
+for $y \in \{0,1\}$ Show that this family of probability measures for $p \in (0,1)$ form an exponential family. Identify $I$ and how the canonical parameter depends on $p$.
+
+Rewrite:
+$$
+p^y (1-p)^{1-y} = e^{y\log(p)+(1-y)\log(1-p)} = (1-p)e^{y \log\frac{p}{1-p}}
+$$
+which is well-defined when $p \in (0,1)$. Setting $\theta = \log\frac{p}{1-p}$ such that $p = \frac{e^\theta}{1+e^{\theta}}$ and $1-p = \frac{1}{1+e^{\theta}}$, we conclude that we have an exponential familiy with $c(\theta) = 1+ e^{\theta}$ and $I = \mathbb{R}$ and structure measure equal to the counting measure on $\{0,1\}$.
+
+## Exercise 4.2
+
+Show that the binomial distributions on $\{0, \dots , n\}$ with success probabilities $p \in (0,1)$ form an exponential family.
+
+Recall that if $Y \sim \text{bin}(n,p)$ then,
+$$
+\mathbf{P}(Y=y) = \begin{pmatrix} n \\y \end{pmatrix}p^{y}(1-p)^{n-y}
+$$
+Rewriting as in exercise 4.1
+$$
+p^{y}(1-p)^{n-y} = e^{y\log(p)+(n-y)\log(1-p)} = (1-p)^ne^{y \log\frac{p}{1-p}}
+$$
+Again, as in exercise 4.1, setting $\theta = \log\frac{p}{1-p}$ we obtain $p = \frac{e^\theta}{1+e^{\theta}}$ and $1-p = \frac{1}{1+e^{\theta}}$. Let $\tau$ be the counting measure on $\{0,1, \dots, n\}$. Set $\nu = \begin{pmatrix} n \\y \end{pmatrix} \cdot \tau$. Then the binomial distributions with $p \in (0,1)$ form an exponential family with structure measure $\nu$, canonical parameter $\theta \in \mathbb{R}$ and $c(\theta) = (1+e^{\theta})^n$ 
