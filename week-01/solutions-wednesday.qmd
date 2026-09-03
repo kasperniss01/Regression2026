@@ -1,5 +1,6 @@
 ---
 title: "Week 1: Wednesday Solutions"
+author: "Kasper Niss and Asbjørn Risom"
 ---
 
 ```{r, include = FALSE}
