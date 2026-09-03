@@ -32,3 +32,61 @@ p^{y}(1-p)^{n-y} = e^{y\log(p)+(n-y)\log(1-p)} = (1-p)^ne^{y \log\frac{p}{1-p}}
 $$
 Again, as in exercise 4.1, setting $\theta = \log\frac{p}{1-p}$ we obtain $p = \frac{e^\theta}{1+e^{\theta}}$ and $1-p = \frac{1}{1+e^{\theta}}$. Let $\tau$ be the counting measure on $\{0,1, \dots, n\}$. Set $\nu = \begin{pmatrix} n \\y \end{pmatrix} \cdot \tau$. Then the binomial distributions with $p \in (0,1)$ form an exponential family with structure measure $\nu$, canonical parameter $\theta \in \mathbb{R}$ and $c(\theta) = (1+e^{\theta})^n$.
 
+## Exercise 4.6
+
+Recall the inverse Gaussian distribution
+
+$$
+f(y) = \sqrt{\frac{\lambda}{2\pi y^3 }}e^{- \frac{\lambda(y-\mu)^2}{2\mu^2 y }}
+$$
+
+#### 1.
+
+We show that this forms a exponential dispersion model. Expanding the square in the exponentional, we find
+
+$$
+e^{- \frac{\lambda(y-\mu)^2}{2\mu^2 y }} = e^{\frac{-\lambda y^2 - \lambda\mu^2 + 2\lambda\mu y}{2\mu^2 y}} = e^{y\cdot  (-\lambda/2\mu^2)  - \lambda/(2y) + \lambda/{\mu}} = e^{-\lambda/2y} e^{-y\lambda/2{\mu} + \lambda/\mu}
+$$
+Set $\psi = \frac{1}{\lambda}$, $\theta = -\frac{1}{2\mu^2}$ such that $\frac{1}{\mu} = \sqrt{-2\theta}$. In this parametrization we have
+$$
+f(y) = \sqrt{\frac{1}{\psi2\pi y^3 }}e^{-\frac{1}{2y\psi}} e^{\frac{y \theta+\sqrt{-2\theta}}{\psi}}
+$$
+Upon setting $\kappa(\theta) = -\sqrt{-2\theta}$ we see that we have an exponential dispersion model with structure measure
+$$
+\frac{\operatorname{d}\nu_{\psi}}{\operatorname{d}m_{(0,\infty)}}(y) = \sqrt{\frac{1}{\psi2\pi y^3 }}e^{-\frac{1}{2y\psi}} 
+$$
+
+#### 2.
+
+We show that the mean is $\mu$ by computing
+$$
+\kappa'(\theta) = -\frac{-2}{2\sqrt{-2 \theta}} = \frac{1}{\sqrt{-2 \theta}} = \mu.
+$$
+We find the variance function by differentiating once more
+$$
+\kappa''(\theta) = \frac{d}{d\theta}(-2\theta)^{-1/2} = -\frac{1}{2} \cdot (-2) (-2\theta)^{-3/2}= \frac{1}{\sqrt{-2\theta}^3} = \mu^3
+$$ 
+And we conclude that $\mathcal{V}(\mu) = \mu^3$.
+
+#### 3.
+
+The canonical link is $g = (k')^{-1}$. We have that
+$$
+\kappa'(\theta) = \mu \Leftrightarrow -\frac{1}{2\mu^2}  = \theta
+$$
+So the canocical link is
+$$
+g(\mu) =  -\frac{1}{2\mu^2}
+$$
+We have the unit deviance formula
+$$
+d(y,\mu) = 2(y(g(y)-g(\mu)) - \kappa(g(y)) + \kappa(g(\mu)))
+$$
+We have 
+$$
+\kappa(g(y)) = \kappa(-\frac{1}{2y^2}) = - \sqrt{-2 \cdot (-\frac{1}{2y^2})} = - \frac{1}{y}
+$$ 
+so
+$$
+d(y,\mu) = 2(y(-\frac{1}{2y^2} + \frac{1}{2\mu^2}) + \frac{1}{y}- \frac{1}{\mu}) = \frac{1}{y} + \frac{y}{\mu^2}- \frac{2}{\mu}  = \frac{(y-\mu)^2}{\mu^2y}
+$$
