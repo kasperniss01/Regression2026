@@ -1,7 +1,289 @@
 ---
 title: "Week 2: Wednesday Solutions"
+author: Kasper Niss, Asbjørn Risom
 ---
 
-## Exercise 1
+## Exercise 4.3
 
-Add the exercise and its solution here.
+Show that if the structure measure $\nu = \delta_{y}$ is the Dirac-measure in $y$ then for the corresponding exponential family we have $P_{\theta} = \delta_y$ for all $\theta \in \mathbb{R}$. Show next, that if $\nu$ is not a one-point measure, then $P_{\theta}$ is not a Dirac-measure for $\theta \in I$ and conclude that its variance is strictly positive.
+
+Assume that $\nu = \delta_{y}$. We have
+$$
+c(\theta) = \int e^{\theta y'} \nu(\operatorname{d} y') = \exp(\theta y) 
+$$
+By definition $P_{\theta}$ has density $\exp(\theta y)/\exp(\theta y) =1$ w.r.t. $\nu = \delta_{y}$ and it follows that $P_{\theta} = \delta_y$ for all $\theta \in \mathbb{R}$.
+
+For the second claim, assume that $\nu$ is not a one-point measure and for contradiction that there exists a $\theta \in I$ and a $y \in \mathbb{R}$ such that $P_{\theta} = \delta_{y}$. Then
+$$
+\frac{\operatorname{d}P_{\theta}}{\operatorname{d} \nu} (y) = \frac{1}{c(\theta)}\exp(\theta y )
+$$
+And 
+$$
+1 = P_{\theta}(\{y\}) = \frac{1}{c(\theta)} \int_{\{y\}} \exp(\theta y') \nu(dy')
+$$
+But this implies that
+$$
+\int_{\{y\}} \exp(\theta y') \nu(dy') = \int \exp(\theta y') \nu(dy') \implies \int_{\mathbb{R} \setminus \{y\}} \exp(\theta y') \nu(dy') = 0 
+$$
+If we can show that this implies that $\nu( \mathbb{R} \setminus \{y\}) = 0$ we are done, as $\nu$ is not the zero measure, we would have $\nu(\{y\}) > 0$, which implies that $\nu$ is a one-point measure, a contradiction. However, this is a standard measure theory result, let $(\mathcal{X}, \mathcal{F},\mu)$ be a measure space. Let $A \in \mathcal{F}$ and suppose that $f > 0$ on $A$ and 
+$$
+\int_A f(x) \mu(\operatorname{d}x) = 0
+$$
+Set $A_n = A \cap (f \geq 1/n)$, such that $\cup_{n} A_n = A$. Then 
+$$
+0=\int_{A} f(x) \mu(\operatorname{d}x) = \int_{A_n} f(x) \mu(\operatorname{d}x) \geq \frac{1}{n}\nu(A_n),
+$$
+Such that $\nu(A_n) = 0$ for all $n$. In particular $\nu(A) \leq \sum_{n=1}^{\infty}\nu(A_n) = 0$.
+
+## Exercise 4.7
+
+Let $\nu = m_{[-1,1]}$ be the Lebesgue measure restricted to [-1,1]$.
+
+#### 1.
+
+Since $e^{\theta y }$ is bounded over $[-1,1]$ for any $\theta \in \mathbb{R}$, we have $c(\theta) < \infty$ for all $\theta \in \mathbb{R}$, from which we conclude that $I = \mathbb{R}$. We compute the unit cumulant function $\kappa$.
+$$
+c(\theta) = \int e^{\theta y} \nu(\operatorname{d}y) = \int_{-1}^1 e^{\theta y} \operatorname{d}y = \frac{1}{\theta}(e^{\theta}-e^{-\theta}) = 2\frac{\sinh(\theta)}{\theta}.
+$$
+Which gives us the unit cumulant 
+$$
+\kappa(\theta) = \log(c(\theta)) = \log(2) + \log(\sinh(\theta)) - \log(\theta)
+$$.
+
+We plot the density w.r.t. Lebesgue measure for $\theta = 1$ and $\theta = -1$
+
+```{r}
+#| message: false
+#| warning: false
+library(ggplot2)
+library(dplyr)
+c_theta <- function(theta){
+  2*sinh(theta)/theta
+}
+dens <- function(theta, y){
+  exp(theta*y)/c_theta(theta)
+}
+ys <- seq(-1,1, by =0.001)
+dens1 <- dens(1,ys)
+densneg1 <- dens(-1,ys)
+df_plot <- tibble(y=rep(ys,2), dens = c(dens1,densneg1), theta = c(rep(1,length(ys)),rep(-1,length(ys))))
+ggplot(df_plot, aes(x = y, y = dens, color = as.factor(theta))) + geom_line() + 
+  xlab("y") + ylab("Density") + 
+  theme_bw()
+
+```
+
+#### 2.
+
+Let $Y \sim P_{\theta}$ where
+$$
+\frac{\operatorname{d}P_{\theta}}{\operatorname{d}\nu} = e^{\theta y - \kappa(\theta)}
+$$
+We compute the mean value map by differentiating the unit cumulant (Theorem 4.1). Recalling that the derivative of $\sinh$ is $\cosh$ we get,
+$$
+\mathbf{E}(Y) = \kappa'(\theta) = \frac{\cosh(\theta)}{\sinh(\theta)} - \frac{1}{\theta},
+$$
+and recalling that $\cosh$ has derivative $-\sinh$ we find that the variance is, for $\theta \neq 0$
+$$
+\mathbf{V}(Y) = \kappa''(\theta)= \frac{1}{\theta^2} - \frac{\sinh(\theta)^2 - \cosh(\theta)^2 }{\sinh(\theta)^2} = \frac{1}{\theta^2} - \frac{1 }{\sinh(\theta)^2}
+$$
+We plot the variance function $\mathcal{V}(\mu)$ for varying $\mu$.
+
+
+```{r}
+mean_value <- function(theta){
+  1/cosh(theta) - 1/theta
+} 
+var_fun <- function(theta){
+  1/theta^2 - 1/sinh(theta)^2
+}
+thetas <- c(seq(-2,-0.01, by = 0.001),seq(0.01,2, by =0.001 ))
+mu <-  mean_value(thetas)
+var_mu <- var_fun(thetas)
+ggplot(data = tibble(mu = mu, var_mu = var_mu), aes(mu,var_mu)) + geom_line() + theme_bw()
+
+```
+
+
+## Exercise 5.2
+
+Let for $\eta, \rho > 0$ 
+$$
+p_{\eta}(k) = G(k,\rho) \left( \frac{1}{\rho + \eta} \right)^{\rho} \left( \frac{\eta}{\rho + \eta} \right)^{k}
+$$
+Fix $\rho$ throughout.
+
+#### 1.
+
+We want to show that $p_{\eta}$ is an exponential family. Note
+$$
+\left( \frac{\eta}{\rho + \eta} \right)^{k} = e^{k \log \frac{\eta}{\rho + \eta}}
+$$
+Set $\theta = \log \frac{\eta}{\rho + \eta}$ such that
+$$
+e^{\theta}(\rho + \eta) = \eta \Leftrightarrow \eta(1-e^{\theta}) = \rho e^{\theta} \Leftrightarrow \eta = \rho \frac{e^{\theta}}{1-e^\theta},
+$$
+We obtain
+$$
+\rho + \eta = \rho \left(1 + \frac{e^{\theta}}{1-e^\theta} \right) = \rho \frac{1}{1-e^\theta}.
+$$
+In this parameterization, we can thus write
+$$
+p_{\eta}(k) = G(k,p) \left( \frac{1-e^{\theta}}{\rho} \right)^\rho \exp(\theta y )
+$$
+If we choose $\nu = G(k,p) \rho^{-\rho} \cdot \tau$, with $\tau$ the counting measure on $\mathbb{N}$ as our structure measue we obtain an exponential family. The normalizing constant is
+$$
+c(\theta) = (1-e^{\theta})^{-\rho},
+$$
+and the unit cumulant is
+$$
+\kappa(\theta) = -\rho \log(1-e^\theta)
+$$
+
+#### 2.
+
+We compute the mean value function by applying theorem 4.1,
+$$
+\kappa'(\theta) = -\rho \frac{-e^{\theta}}{1-e^{\theta}} = \rho \frac{e^{\theta}}{1-e^{\theta}} = \eta = \mu(\eta).
+$$
+We compute the variance function by taking the second derivative,
+$$
+\kappa''(\theta) = \rho \frac{e^\theta(1-e^{\theta})+e^{2\theta}}{(1-e^{\theta})^2} = \rho \frac{e^{\theta}}{(1-e^{\theta})^2} = \eta \frac{1}{1-e^\theta}
+$$
+$$
+1-e^{\theta} = 1-\frac{\eta}{\rho + \eta} = \frac{\rho}{\rho + \eta}
+$$
+So,
+$$
+\kappa''(\theta) = \eta \frac{\rho + \eta}{\rho} = \eta + \frac{\eta^2}{\rho} = \mathcal{V}(\mu(\eta))
+$$
+
+#### 3.
+
+We implement the Fisher scoring algorithm and implement for various values of $\rho$:
+
+```{r}
+Xi <- c(5,10,15,20,25,30,35,40,45,50)
+Yi <- c(6,11,16,38,82,22,108,61,55,64)
+
+#Designmatrix 
+X <- matrix(c(rep(1,10),Xi),ncol=2)
+
+update <- function(beta, rho){
+  eta <- X %*% beta
+  mu <- eta
+  Z <- Yi
+  W <- c(rho / (eta * (eta + rho)))
+  return(lm(Z ~ Xi,weights=W)$coefficients)
+}
+
+IWLS <- function(beta.init, rho = 1, eps = 10^-6, numIter = 10){
+  iter <- 0
+  beta.old <- beta.init
+  for(i in 1:numIter){
+    beta.new <- update(beta.old, rho)
+    if(dist(rbind(beta.old, beta.new)) < eps){
+      iter <- i
+      break
+    }
+    beta.old <- beta.new
+  }
+  return(list(beta = beta.new, iter = iter))
+}
+
+
+IWLS(beta.init = c(1, 1),rho = 1)
+IWLS(beta.init = c(1, 1),rho = 10)
+IWLS(beta.init = c(1, 1),rho = 0.1)
+```
+We see that the coefficients are not very sensitive to the choice of $\rho$.
+
+#### 4.
+
+We have that the pearson residuals are given by:
+$$ 
+\frac{Y_i - \mu(\hat{\eta_i})}{\sqrt{ \mathcal{V}(\mu(\hat{\eta_i}))}} = \frac{Y_i - \hat{\eta_i}}{\sqrt{\hat{\eta_i} + \frac{\hat{\eta_i}^2}{\rho}}}
+$$
+```{r}
+# Find MLE using our algorithm for rho = 1
+rho <- 1
+betahat <- IWLS(beta.init = c(1, 1), rho = rho)$beta
+etahat <- X %*% betahat
+
+
+# Pearson residuals 
+resid <- (Yi - etahat)/(sqrt(etahat + etahat^2/rho))
+
+# The fitted values (the etas) against the residuals: 
+df_Pearson_resid <- data.frame(.fitted = etahat, .resid = resid)
+ggplot(aes(.fitted,.resid), data = df_Pearson_resid) +
+	geom_point() +
+  geom_smooth() + 
+  xlab("Fitted values") + 
+  ylab("Pearson residuals") + 
+  theme_bw()
+```
+The Pearson $\chi^2$ statistic is
+```{r}
+sum(resid^2)
+```
+
+#### 5.
+
+We implement a function that computes the $\chi^2$ statistic as a function of $\rho$. This is just a matter of generalizing the above computation. Recall equation (5.6) which gives the following formula for an estimator of the dispersion parameter in a generalized linear model.
+$$
+\hat{\psi} = \frac{1}{n-p}\chi^2
+$$
+In our case, we have an exponential family, i.e. unit dispersion, and as $n-p = 8$ our case, we therefore expect $8 =\chi^2$. 
+```{r}
+chisq <- function(rho) 
+  {
+  betahat <- IWLS(beta.init = c(1, 1), rho)$beta
+  etahat <- c(X %*% betahat)
+  # Pearson residuals 
+  resid <- (Yi - etahat)/(sqrt(etahat + etahat^2/rho))
+  sum(resid^2)
+}
+
+rhoseq <- seq(0.1, 5, 0.01)
+chiseq <- sapply(X = rhoseq, FUN = chisq)
+
+df_Chisq <- data.frame(rho = rhoseq, chisq = chiseq)
+
+ggplot(data = df_Chisq, aes(x = rho, y = chisq)) +
+  geom_line() +
+  geom_hline(yintercept = 8, linetype = "dashed", color = "red") +
+  xlab(expression(rho)) +
+  ylab(expression(chi^2))+ 
+  theme_bw()
+```
+We see that $\chi^2 = 8$ approximately when $\rho = 4$. Data seems to indicate that $\rho = 4$ is a reasonable choice.
+
+#### 6.
+
+We use equation (5.7) to compute confidence intervals for $\beta_1$, where we obtain $\beta_1$ using MLE under $\rho =1$, and base our confidence intervals on the estimate of the dispersion parameter from above, when $\rho = 1$ respectivly 4.
+
+```{r}
+#Find MLE using our algorithm for rho = 1
+betahat <- IWLS(c(1,1), 1)$beta
+etahat <- X %*% betahat
+
+# Computing the two different values of the dispersion parameter (equation 6.5)
+psihat1 <- 1/8*chisq(rho = 1)
+psihat4 <- 1/8*chisq(rho = 4)
+
+# Computing Weight matrix in both cases
+What1 <- diag( as.vector( 1 / (etahat*(1 + etahat)) ))
+What4 <- diag( as.vector( 4 / (etahat*(4 + etahat)) ))
+
+#the standard errors
+sd1hat <- sqrt(psihat1 %*% solve(t(X )%*% What1 %*% X)[2,2])
+sd4hat <- sqrt(psihat4 %*% solve(t(X )%*% What4 %*% X)[2,2])
+
+#The confidence intervals 
+z <- qnorm(0.975)
+betahat[2] + c(-z*sd4hat, z*sd4hat)
+betahat[2] + c(-z*sd1hat, z*sd1hat)
+```
+
+We see that the results are almost identical.

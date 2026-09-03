@@ -30,4 +30,5 @@ Rewriting as in exercise 4.1
 $$
 p^{y}(1-p)^{n-y} = e^{y\log(p)+(n-y)\log(1-p)} = (1-p)^ne^{y \log\frac{p}{1-p}}
 $$
-Again, as in exercise 4.1, setting $\theta = \log\frac{p}{1-p}$ we obtain $p = \frac{e^\theta}{1+e^{\theta}}$ and $1-p = \frac{1}{1+e^{\theta}}$. Let $\tau$ be the counting measure on $\{0,1, \dots, n\}$. Set $\nu = \begin{pmatrix} n \\y \end{pmatrix} \cdot \tau$. Then the binomial distributions with $p \in (0,1)$ form an exponential family with structure measure $\nu$, canonical parameter $\theta \in \mathbb{R}$ and $c(\theta) = (1+e^{\theta})^n$ 
+Again, as in exercise 4.1, setting $\theta = \log\frac{p}{1-p}$ we obtain $p = \frac{e^\theta}{1+e^{\theta}}$ and $1-p = \frac{1}{1+e^{\theta}}$. Let $\tau$ be the counting measure on $\{0,1, \dots, n\}$. Set $\nu = \begin{pmatrix} n \\y \end{pmatrix} \cdot \tau$. Then the binomial distributions with $p \in (0,1)$ form an exponential family with structure measure $\nu$, canonical parameter $\theta \in \mathbb{R}$ and $c(\theta) = (1+e^{\theta})^n$.
+
