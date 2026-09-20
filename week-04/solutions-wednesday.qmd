@@ -5,7 +5,7 @@ author: "Clara Rosengaard Groth"
 
 ## Exercise 8.1
 
-```{r}
+```{r, include=FALSE}
 library(RwR)
 library(dplyr)
 library(tidyverse)
@@ -16,6 +16,10 @@ library(broom)
 library(splines)
 library(gridExtra)
 theme_set(theme_bw())
+```
+
+
+```{r}
 set.seed(42)
 data(gapminder, package = "RwR")
 head(gapminder)
