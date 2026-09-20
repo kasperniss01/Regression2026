@@ -6,6 +6,16 @@ author: "Clara Rosengaard Groth"
 ## Exercise 8.1
 
 ```{r}
+library(RwR)
+library(dplyr)
+library(tidyverse)
+library(RwR)
+library(ggplot2)
+library(tibble)
+library(broom)
+library(splines)
+library(gridExtra)
+theme_set(theme_bw())
 set.seed(42)
 data(gapminder, package = "RwR")
 head(gapminder)
