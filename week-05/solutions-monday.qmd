@@ -5,3 +5,57 @@ title: "Week 5: Monday Solutions"
 ## Exercise 1
 
 Add the exercise and its solution here.
+
+
+
+
+## Exercise 8.3
+
+Let $\eta_0$ and $\eta_1$ be independent such that $\eta_1$ is distributed identically to $\eta_0 + \xi$ for some $\xi \in \mathbb{R}$. Let $F_0$ and $F_1$ denote respectively the distribution function of $\eta_0$ respectively $\eta_1$. Assume that $F_0$ is continuous. Recall that whenever the $\mathbf{E}(|f(\eta_0)|) < \infty$ we have
+$$
+\mathbf{E}(f(\eta_0)) = \int f(x) dF_0(x),
+$$
+Where the right hand side is a Stieltjes integral. The above fact is sufficient to solve the exercise, but if you are unfamiliar with the Stieltjes integral and want to know more, you can consult [Wikipedia](https://en.wikipedia.org/wiki/Riemann%E2%80%93Stieltjes_integral).
+
+### 1.
+
+Recall that 
+$$
+\text{AUC} = \mathbf{P}(\eta_0 < \eta_1) + \frac{1}{2}\mathbf{P}(\eta_0 = \eta_1)
+$$
+We first show that the second term vanishes. Let $\tilde{\eta}_0$ have the same distribution as $\eta_0$ and be independent of $\eta_0$. Then, by the tower property,
+$$
+\mathbf{P}(\eta_0 = \eta_1) = \mathbf{P}(\eta_0 = \tilde\eta_0 + \xi) = \mathbf{E}(\mathbf{P}(\eta_0 = \tilde\eta_0 + \xi|\tilde\eta_0)),
+$$
+and by independendence of $\eta_0$ and $\tilde \eta_0$ as well as the continuity of $F_0$,
+$$
+\mathbf{P}(\eta_0 = \tilde\eta_0 + \xi|\tilde\eta_0) = F_0(\tilde\eta_0 + \xi) - \lim_{t \uparrow \tilde\eta_0 + \xi}F_0(t) = 0,
+$$
+which shows the desired. Thus,
+$$
+\text{AUC} = \mathbf{P}(\eta_0 < \eta_1) = \mathbf{P}(\eta_0 \leq \eta_1),
+$$
+and applying the tower property once more shows
+$$
+\mathbf{P}(\eta_0 \leq \eta_1) = \mathbf{E}(\mathbf{P}(\eta_0 \leq \tilde\eta_0 + \xi|\tilde\eta_0)) = \mathbf{E}(F_0(\tilde \eta + \xi)) = \int F_0(x + \xi)dF_0(x) := G(\xi).
+$$
+And we conclude that
+$$
+\text{AUC} = G(\xi).
+$$
+
+### 2.
+
+Let $\tilde{\eta}$ be as above. We can use the same argument as above to see that
+$$
+\mathbf{P}(\eta_0 - \tilde\eta_0 \leq z) = G(z).
+$$
+We conclude that $G$ is the distribution function for the random variable $\eta_0 - \tilde \eta_0$
+
+### 3. 
+
+Let now $\eta_0 \sim \mathcal{N}(\mu, \sigma^2)$. Then, $\eta_0 - \tilde{\eta}_0 \sim \mathcal{N}(0, 2\sigma^2)$. Combining this with the result from 2., we find that, 
+$$
+\text{AUC} = G(\xi) = \Phi\left(\frac{\xi}{\sqrt{2}\sigma}\right)
+$$
+
