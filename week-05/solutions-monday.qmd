@@ -1,6 +1,6 @@
 ---
 title: "Week 5: Monday Solutions"
-author: "Kasper Niss"
+author: "Kasper Niss & Asbjørn Risom"
 format:
   html:
     include-in-header:
@@ -16,9 +16,7 @@ format:
         </script>
 ---
 
-::: {style="color: #1f77b4;"}
-Suggested by codex: The document header defines MathJax-compatible `\norm{}` and `\del{}` commands for the HTML preview.
-:::
+
 
 ```{r, include=FALSE}
 library(RwR)
@@ -33,36 +31,31 @@ library(gridExtra)
 theme_set(theme_bw())
 ```
 
-## Exercise 8.2
+## Exercise 8.2 
 
-Recall that a linear estimator is of the form
+Recall that a linear estimator is of the form 
 $$
 \mathbf{\hat\mu} = \mathbf{S} \mathbf{Y}
-$$
-for an $\mathbf{X}$ dependent matrix $\mathbf{S}$. Here, $\mu = \mathbb{E}[\mathbf{Y} \mid \mathbf{X}] \in \mathbb{R}^n$ is the vector of conditional expectations of the outcome given the predictors. 
+$$ 
+for an $\mathbf{X}$ dependent matrix $\mathbf{S}$. Here, $\mu = \mathbb{E}[\mathbf{Y} \mid \mathbf{X}] \in \mathbb{R}^n$ is the vector of conditional expectations of the outcome given the predictors.
 
-#### 1. Show that the penalized and weighted least squares estimator, solving the normal equation in Theorem 2.1, is linear and identify the matrix $\mathbf{S}$. 
+#### 1. Show that the penalized and weighted least squares estimator, solving the normal equation in Theorem 2.1, is linear and identify the matrix $\mathbf{S}$.
 
-Note that the question is slightly ambigious. It is unclear whether it is the estimated coefficient vector or the fitted mean we need to show is linear. 
+Note that the question is slightly ambigious. It is unclear whether it is the estimated coefficient vector or the fitted mean we need to show is linear.
 
-In fact, they are both! 
+In fact, they are both!
 
-Under the assumption of uniqueness in Theorem 2.1 -- either $\mathbf{X}$ has full column rank or $\Omega$ is positive definite -- the penalized and weighted least squares estimator of the coefficient vector is
-$$
+Under the assumption of uniqueness in Theorem 2.1 -- either $\mathbf{X}$ has full column rank or $\Omega$ is positive definite -- the penalized and weighted least squares estimator of the coefficient vector is $$
 \hat\beta_\lambda = (\mathbf{X}^\top \mathbf{W} \mathbf{X} + \Omega)^{-1} \mathbf{X}^\top \mathbf{W} \mathbf{Y} = \mathbf{B} \mathbf{Y},
-$$
-where $\mathbf{B} = (\mathbf{X}^\top \mathbf{W} \mathbf{X} + \Omega)^{-1} \mathbf{X}^\top \mathbf{W}$ showing that $\hat\beta_\lambda$ is linear. 
+$$ where $\mathbf{B} = (\mathbf{X}^\top \mathbf{W} \mathbf{X} + \Omega)^{-1} \mathbf{X}^\top \mathbf{W}$ showing that $\hat\beta_\lambda$ is linear.
 
-The induced fitted mean estimator is $\hat\mu_\lambda = \mathbf{X}\hat\beta_\lambda$, and we see that 
-$$
+The induced fitted mean estimator is $\hat\mu_\lambda = \mathbf{X}\hat\beta_\lambda$, and we see that $$
 \hat\mu_\lambda = \mathbf{X} \mathbf{B} \mathbf{Y} = \mathbf{S} \mathbf{Y},
-$$
-where $\mathbf{S} = \mathbf{X}(\mathbf{X}^\top \mathbf{W} \mathbf{X} + \Omega)^{-1} \mathbf{X}^\top \mathbf{W}$. 
+$$ where $\mathbf{S} = \mathbf{X}(\mathbf{X}^\top \mathbf{W} \mathbf{X} + \Omega)^{-1} \mathbf{X}^\top \mathbf{W}$.
 
-This shows that both $\hat\beta_\lambda$ and $\hat\mu_\lambda$ are linear. 
+This shows that both $\hat\beta_\lambda$ and $\hat\mu_\lambda$ are linear.
 
-For the rest of this exercise we assume that the weight matrix is $\mathbf{W} = \mathbf{I}$ and the penalty matrix is diagonal and of the form
-$$
+For the rest of this exercise we assume that the weight matrix is $\mathbf{W} = \mathbf{I}$ and the penalty matrix is diagonal and of the form $$
 \Omega = \lambda
 \begin{pmatrix}
 \omega_1 & 0 & \dots & 0 \\
@@ -71,76 +64,54 @@ $$
 0 & 0 & \dots & \omega_p
 \end{pmatrix}
  = \lambda \operatorname{diag}(\omega) = \lambda \operatorname{diag}(\omega_1, \dots, \omega_p),
-$$
-where $\lambda > 0$. You should think about $\lambda$ as a tuning parameter that we want to optimize over, while $\omega_1, \dots, \omega_p \geq 0$ are fixed penalty weights determining the relative distribution of penalization on the different parameters. We also let $\hat\beta$ and $\hat\mu$ denote the (unpenalized) least squares estimator of $\beta$ and $\mu$ respectively.
+$$ where $\lambda > 0$. You should think about $\lambda$ as a tuning parameter that we want to optimize over, while $\omega_1, \dots, \omega_p \geq 0$ are fixed penalty weights determining the relative distribution of penalization on the different parameters. We also let $\hat\beta$ and $\hat\mu$ denote the (unpenalized) least squares estimator of $\beta$ and $\mu$ respectively.
 
 #### 2. Show that if the model matrix $\mathbf{X}$ has orthogonal columns, i.e. $\mathbf{X}^\top \mathbf{X}$ is diagonal, then with
+
 $$
 \gamma_j = \sum_{i = 1}^{n} X_{ij}^2 = \norm{\mathbf{X}_{\cdot, j}}^2
 $$
- 
-the squared 2-norm of the $j$-th column of $\mathbf{X}$, the penalized least squares estimator, $\hat\beta_\lambda$,is given by
-$$
+
+the squared 2-norm of the $j$-th column of $\mathbf{X}$, the penalized least squares estimator, $\hat\beta_\lambda$,is given by $$
 \hat\beta_{\lambda,j} = \frac{\gamma_j}{\gamma_j + \lambda \omega_j}\hat\beta_j,
 $$
- 
-and 
-$$
+
+and $$
 \hat\mu_\lambda = \mathbf{X} \hat\beta_\lambda.
-$$
-Show also that the effective degrees of freedom is
-$$
+$$ Show also that the effective degrees of freedom is $$
 \operatorname{df}_\lambda = \sum_{j = 1}^{p} \frac{\gamma_j}{\gamma_j + \lambda \omega_j}.
 $$
 
-Recall the formula for $\hat\beta_\lambda$ from above, and note that
-$$
+Recall the formula for $\hat\beta_\lambda$ from above, and note that $$
 \hat\beta_\lambda = (\mathbf{X}^\top \mathbf{W} \mathbf{X} + \Omega)^{-1} \mathbf{X}^\top \mathbf{W} \mathbf{Y} = (\mathbf{X}^\top \mathbf{X} + \Omega)^{-1}\mathbf{X}^\top \mathbf{Y}
-$$
-because $\mathbf{W} = \mathbf{I}$. By the ortogonality assumption, the columns in $\mathbf{X}$ satisfy
-$$
+$$ because $\mathbf{W} = \mathbf{I}$. By the ortogonality assumption, the columns in $\mathbf{X}$ satisfy $$
 \mathbf{X}_{\cdot, j}^\top \mathbf{X}_{\cdot,k} = 0, \quad j \neq k,
-$$
-and for $j = k$,
-$$
+$$ and for $j = k$, $$
 \mathbf{X}_{\cdot, j}^\top \mathbf{X}_{\cdot, j} = \norm{\mathbf{X}_{\cdot, j}}^2 = \gamma_j.
-$$
-That is, 
-$$
+$$ That is, $$
 \mathbf{X}^\top \mathbf{X} = \operatorname{diag}(\gamma) = \operatorname{diag}(\gamma_1, \dots, \gamma_p),
-$$
-a diagonal matix with $\gamma_1, \dots, \gamma_p$ on the diagonal. 
+$$ a diagonal matix with $\gamma_1, \dots, \gamma_p$ on the diagonal.
 
-The penalized least squares estimator (which is not weigthed because $\mathbf{W} = \mathbf{I}$) then reduces to 
-\begin{align*}
+The penalized least squares estimator (which is not weigthed because $\mathbf{W} = \mathbf{I}$) then reduces to \begin{align*}
 \hat\beta_\lambda &= (\mathbf{X}^\top \mathbf{X} + \Omega)^{-1}\mathbf{X}^\top \mathbf{Y} \\
  &= (\operatorname{diag}(\gamma) + \lambda \operatorname{diag}(\omega))^{-1} \mathbf{X}^\top \mathbf{Y} \\
 &= (\operatorname{diag}(\gamma + \lambda \omega))^{-1}\mathbf{X}^\top \mathbf{Y} \\
 &= \operatorname{diag}\left(\frac{1}{\gamma + \lambda \omega}\right) \mathbf{X}^\top \mathbf{Y}. 
 \end{align*}
 
-Similarly, the unpenalized estimator, $\hat\beta$, under orthogonality, is given as 
-$$
+Similarly, the unpenalized estimator, $\hat\beta$, under orthogonality, is given as $$
 \hat\beta = (\mathbf{X}^\top \mathbf{X})^{-1} \mathbf{X}^\top \mathbf{Y} = \operatorname{diag}\left(\frac{1}{\gamma}\right) \mathbf{X}^\top \mathbf{Y},
-$$
-and combining the two, we see that
-\begin{align*}
+$$ and combining the two, we see that \begin{align*}
 \hat\beta_\lambda &= \operatorname{diag}\left(\frac{1}{\gamma + \lambda \omega}\right) \mathbf{X}^\top \mathbf{Y} \\
 &= \operatorname{diag}\left(\frac{\gamma}{\gamma + \lambda \omega}\right) \operatorname{diag}\left(\frac{1}{\gamma}\right) \mathbf{X}^\top \mathbf{Y} \\
 &= \operatorname{diag}\left(\frac{\gamma}{\gamma + \lambda \omega}\right) \hat\beta,
-\end{align*}
-and the result follows by choosing the $j$-th coordinate. 
+\end{align*} and the result follows by choosing the $j$-th coordinate.
 
-For the degrees of freedom, we use example 8.7, which applies under the canonical link being the identity (i.e. a linear model), and also assuming A2 and A4,
-$$
+For the degrees of freedom, we use example 8.7, which applies under the canonical link being the identity (i.e. a linear model), and also assuming A2 and A4, $$
 \operatorname{df}_\lambda = \operatorname{trace}(\mathbf{S}) = \operatorname{trace}(\mathbf{X}(\mathbf{X}^\top \mathbf{W} \mathbf{X} + \Omega)^{-1} \mathbf{X}^\top \mathbf{W}).
-$$
-Recall again that $\mathbf{W} = \mathbf{I}$, $\mathbf{X}^\top \mathbf{X} = \operatorname{diag}(\gamma)$, and that $\Omega = \lambda \operatorname{diag}(\omega)$, such that
-$$
+$$ Recall again that $\mathbf{W} = \mathbf{I}$, $\mathbf{X}^\top \mathbf{X} = \operatorname{diag}(\gamma)$, and that $\Omega = \lambda \operatorname{diag}(\omega)$, such that $$
 \mathbf{S} = \mathbf{X}\operatorname{diag}\left(\frac{1}{\gamma + \lambda \omega}\right) \mathbf{X}^\top.
-$$
-Now using the cyclic property of the $\operatorname{trace}$ operator, we find that
-\begin{align*}
+$$ Now using the cyclic property of the $\operatorname{trace}$ operator, we find that \begin{align*}
 \operatorname{df}_\lambda &= \operatorname{trace}(\mathbf{S}) \\
 &= \operatorname{trace}\left(\mathbf{X}\operatorname{diag}\left(\frac{1}{\gamma + \lambda \omega}\right) \mathbf{X}^\top\right) \\ 
 &= \operatorname{trace}\left(\operatorname{diag}\left(\frac{1}{\gamma + \lambda \omega}\right) \mathbf{X}^\top \mathbf{X}\right) \\
@@ -150,28 +121,22 @@ Now using the cyclic property of the $\operatorname{trace}$ operator, we find th
 \end{align*}
 
 #### 3. Show that if $\omega_1 = \dots = \omega_p = 1$, then, irrespectively of whether $\mathbf{X}$ has orthogonal columns, the effective degrees of freedom is
+
 $$
 \operatorname{df}_\lambda = \sum_{j = 1}^{p} \frac{\gamma_j}{\gamma_j + \lambda},
-$$
-where $\gamma_1, \dots, \gamma_p \geq 0$ are the eigenvalues of $\mathbf{X}^\top \mathbf{X}$. 
+$$ where $\gamma_1, \dots, \gamma_p \geq 0$ are the eigenvalues of $\mathbf{X}^\top \mathbf{X}$.
 
-Since $\omega_1 = \dots = \omega_p = 1$, $\Omega = \lambda \mathbf{I}$. 
+Since $\omega_1 = \dots = \omega_p = 1$, $\Omega = \lambda \mathbf{I}$.
 
+Because $\mathbf{X}^\top \mathbf{X}$ is real and symmetric, we can eigenvalue decompose it as $\mathbf{X}^\top \mathbf{X} = \mathbf{Q} \mathbf{V} \mathbf{Q}^\top$, where $\mathbf{Q}$ is an orthonormal matrix (i.e. $\mathbf{Q}^\top \mathbf{Q} = \mathbf{I}$ and $\mathbf{Q}^{-1} = \mathbf{Q}^\top$) consisting of the eigenvectors of $\mathbf{X}^\top \mathbf{X}$ and $\mathbf{V}$ is a diagonal matrix consisting of the eigenvalues of $\mathbf{X}^\top \mathbf{X}$, that is $\mathbf{V} = \operatorname{diag}(\gamma) = \operatorname{diag}(\gamma_1, \dots, \gamma_p)$.
 
-Because $\mathbf{X}^\top \mathbf{X}$ is real and symmetric, we can eigenvalue decompose it as $\mathbf{X}^\top \mathbf{X} = \mathbf{Q} \mathbf{V} \mathbf{Q}^\top$, where $\mathbf{Q}$ is an orthonormal matrix (i.e. $\mathbf{Q}^\top \mathbf{Q} = \mathbf{I}$ and  $\mathbf{Q}^{-1} = \mathbf{Q}^\top$) consisting of the eigenvectors of $\mathbf{X}^\top \mathbf{X}$ and $\mathbf{V}$ is a diagonal matrix consisting of the eigenvalues of $\mathbf{X}^\top \mathbf{X}$, that is $\mathbf{V} = \operatorname{diag}(\gamma) = \operatorname{diag}(\gamma_1, \dots, \gamma_p)$. 
+When $\omega = \mathbf{1}$, $\Omega = \lambda \mathbf{I}$, and $\mathbf{S} = \mathbf{X}(\mathbf{X}^\top\mathbf{X} + \lambda \mathbf{I})^{-1} \mathbf{X}^\top$.
 
-When $\omega = \mathbf{1}$, $\Omega = \lambda \mathbf{I}$, and $\mathbf{S} = \mathbf{X}(\mathbf{X}^\top\mathbf{X} + \lambda \mathbf{I})^{-1} \mathbf{X}^\top$. 
-
-Using the eigendecomposition of $\mathbf{X}^\top\mathbf{X}$, we get
-$$
+Using the eigendecomposition of $\mathbf{X}^\top\mathbf{X}$, we get $$
 \mathbf{X}^\top\mathbf{X} + \lambda \mathbf{I} = \mathbf{Q}(\mathbf{V} + \lambda \mathbf{I}) \mathbf{Q}^\top.
-$$
-The orthogonality of $\mathbf{Q}$ gives
-$$
+$$ The orthogonality of $\mathbf{Q}$ gives $$
 (\mathbf{X}^\top\mathbf{X} + \lambda \mathbf{I})^{-1} = \mathbf{Q}^{-\top}(\mathbf{V} + \lambda \mathbf{I})^{-1} \mathbf{Q}^{-1} = \mathbf{Q} (\mathbf{V} + \lambda \mathbf{I})^{-1} \mathbf{Q}^\top.
-$$
-The effective degrees of freedom are then
-\begin{align*}
+$$ The effective degrees of freedom are then \begin{align*}
 \operatorname{df}_\lambda &= \operatorname{trace}(\mathbf{S}) \\
 &= \operatorname{trace}\left(\mathbf{X}(\mathbf{X}^\top\mathbf{X} + \lambda \mathbf{I})^{-1} \mathbf{X}^\top\right) \\
 &= \operatorname{trace}\left((\mathbf{X}^\top\mathbf{X} + \lambda \mathbf{I})^{-1} \mathbf{X}^\top\mathbf{X}\right) \\
@@ -181,7 +146,7 @@ The effective degrees of freedom are then
 &= \sum_{j = 1}^{p} \frac{\gamma_j}{\gamma_j + \lambda}.
 \end{align*}
 
-For the remaining part of this exercise we consider the bike rental data introduced in Section 8.2. Using the `poly()` function we construct a model matrix with $p = 7$ orthogonal columns, corresponding to expanding the regression function using orthogonal polynomials of degree $6$. 
+For the remaining part of this exercise we consider the bike rental data introduced in Section 8.2. Using the `poly()` function we construct a model matrix with $p = 7$ orthogonal columns, corresponding to expanding the regression function using orthogonal polynomials of degree $6$.
 
 ```{r}
 data(bike, package = "RwR")
@@ -189,7 +154,7 @@ X <- model.matrix(~ poly(Temperature, degrees = 6), data = bike)
 beta_hat <- lm.fit(X, bike$Count) |> coefficients()
 ```
 
-The least squares estimate is computed above as `beta_hat`, and the corresponding fitted values are shown in Figure 8.12 (or below). For the following questions we take $\omega_1 = \omega_2 = 0$ and $\omega_3 = \dots \omega_7 = 1$. 
+The least squares estimate is computed above as `beta_hat`, and the corresponding fitted values are shown in Figure 8.12 (or below). For the following questions we take $\omega_1 = \omega_2 = 0$ and $\omega_3 = \dots \omega_7 = 1$.
 
 ```{r}
 ggplot(bike, aes(Temperature, Count)) + 
@@ -200,6 +165,7 @@ ggplot(bike, aes(Temperature, Count)) +
 #### 4. Check numerically that `X` (approximately) has *orthogonal* columns.
 
 We check that the product $\mathbf{X}^\top \mathbf{X}$ is approximately diagonal
+
 ```{r}
 XtX <- t(X) %*% X
 
@@ -208,12 +174,11 @@ diag(off.diagonal) <- 0 #set the diagonal in X^top X to be 0
 max(abs(off.diagonal)) #find the largest value on the off diagonal
 ```
 
-It is small, thus $\mathbf{X}^\top \mathbf{X}$ is approximately diagonal. 
+It is small, thus $\mathbf{X}^\top \mathbf{X}$ is approximately diagonal.
 
-#### 5. Compute an estimate of $\sigma^2$ based on the least squares estimate $\hat\beta$ of $\beta$. 
+#### 5. Compute an estimate of $\sigma^2$ based on the least squares estimate $\hat\beta$ of $\beta$.
 
-
-Recall (see e.g. equation (2.9) and Theorem 2.2) that an estimator of $\sigma^2$ is $\hat\sigma^2 = \frac{1}{n - p}\norm{Y - \mathbf{X} \hat\beta}^2$, where $n = `{r} nrow(bike)`$ and $p = `{r} length(beta_hat)`$ that is the number of datapoints and covariates, respectively.  
+Recall (see e.g. equation (2.9) and Theorem 2.2) that an estimator of $\sigma^2$ is $\hat\sigma^2 = \frac{1}{n - p}\norm{Y - \mathbf{X} \hat\beta}^2$, where $n = `{r} nrow(bike)`$ and $p = `{r} length(beta_hat)`$ that is the number of datapoints and covariates, respectively.
 
 ```{r}
 n <- nrow(bike)
@@ -226,15 +191,15 @@ sigma.hat.sq
 ```
 
 We could also use the `lm` function
+
 ```{r}
 fit <- lm(Count ~ poly(Temperature, degree = 6), data = bike)
 sigma(fit)^2
 ```
 
+#### 6. Implement the computation of $\hat\mu_\lambda$ and $\operatorname{df}_\lambda$ for a sequence of values of $\lambda$.
 
-#### 6. Implement the computation of $\hat\mu_\lambda$ and $\operatorname{df}_\lambda$ for a sequence of values of $\lambda$. 
-
-Note that $\lambda = 0$ gives least squares and large values of $\lambda$ effectively make $\hat\beta_\lambda = (\hat\beta_0, \hat\beta_1, 0, \dots, 0)^\top$. 
+Note that $\lambda = 0$ gives least squares and large values of $\lambda$ effectively make $\hat\beta_\lambda = (\hat\beta_0, \hat\beta_1, 0, \dots, 0)^\top$.
 
 Recall that $\omega = (0, 0, 1, \dots, 1)^\top \in \mathbb{R}^7$
 
@@ -242,9 +207,10 @@ Recall that $\omega = (0, 0, 1, \dots, 1)^\top \in \mathbb{R}^7$
 omega <- c(0, 0, rep(1, ncol(X) - 2))
 ```
 
-Because $\mathbf{X}$ has ortogonal columns, see question 4, we can use the result from question 2 to calculate both $\hat\mu_\lambda$ and $\operatorname{df}_\lambda$. 
+Because $\mathbf{X}$ has ortogonal columns, see question 4, we can use the result from question 2 to calculate both $\hat\mu_\lambda$ and $\operatorname{df}_\lambda$.
 
 First we find the vector $\gamma$ as the squared 2-norm of the $p = `{r} ncol(X)`$ columns of $\mathbf{X}$ and then we create functions to compute $\hat\mu_\lambda$ and $\operatorname{df}_\lambda$
+
 ```{r}
 gamma <- colSums(X^2) # finds the squared norm
 
@@ -303,12 +269,9 @@ lambda.results |>
 )
 ```
 
-
-
 #### 7. Compute $\operatorname{err}$ for the sequence of $\lambda$-values and compute then a sequence of estimates of the in-sample error. Plot the in-sample error against the effective degrees of freedom. What is the best model according to the in-sample error?
 
-Recall that we are using the linear model so the error is using least squares, i.e.
-$$
+Recall that we are using the linear model so the error is using least squares, i.e. $$
 \operatorname{err}_\lambda = \frac{1}{n} \norm{\mathbf{Y} - \hat\mu_\lambda}^2
 $$
 
@@ -322,6 +285,7 @@ lambda.results <- lambda.results |>
 ```
 
 We can plot $\operatorname{err}$ as a function of the effective degrees of freedom
+
 ```{r}
 err.plot <- ggplot(
   lambda.results,
@@ -337,13 +301,11 @@ err.plot <- ggplot(
 err.plot
 ```
 
-As expected, $\operatorname{err}$, i.e. the training error, decreases with the complexity of the model. 
+As expected, $\operatorname{err}$, i.e. the training error, decreases with the complexity of the model.
 
-From example 8.7, we have that the in-sample error estimate is given as 
-$$
+From example 8.7, we have that the in-sample error estimate is given as $$
 \widehat{\operatorname{Err}_{\operatorname{in}}} = \operatorname{err} + \frac{2\hat\sigma^2}{n}\operatorname{trace}(\mathbf{S}) = \operatorname{err} + \frac{2\hat\sigma^2}{n}\operatorname{df}_\lambda,
-$$
-where we can use our estimate of $\sigma^2$ from question 5 and question 3 that the trace of $\mathbf{S}$ is the same as the effective degrees of freedom
+$$ where we can use our estimate of $\sigma^2$ from question 5 and question 3 that the trace of $\mathbf{S}$ is the same as the effective degrees of freedom
 
 ```{r}
 err_in <- err + 2 * sigma.hat.sq / n * df.path
@@ -366,7 +328,7 @@ ggplot(lambda.results, aes(x = df, y = err_in)) +
   )
 ```
 
-... And indeed it is. The in-sample error initially decreases and then it starts to increase, with the model complexity. 
+... And indeed it is. The in-sample error initially decreases and then it starts to increase, with the model complexity.
 
 We can also plot both training and in-sample error together
 
@@ -400,9 +362,9 @@ lambda.results |>
   ) 
 ```
 
-Next, we go about finding the best model. 
+Next, we go about finding the best model.
 
-The best model is the model that minimizes the in-sample error, $\widehat{\operatorname{Err}_{\operatorname{in}}}$, and in this case, it will be over the grid we have considered. 
+The best model is the model that minimizes the in-sample error, $\widehat{\operatorname{Err}_{\operatorname{in}}}$, and in this case, it will be over the grid we have considered.
 
 ```{r}
 assessment.results <- data.frame(
@@ -418,13 +380,11 @@ best.in.sample <- assessment.results |>
 best.in.sample
 ```
 
-We see that the best model (over the considered grid) is obtained with $\lambda_{\operatorname{opt}} \approx 0.52$ and 
-$$
+We see that the best model (over the considered grid) is obtained with $\lambda_{\operatorname{opt}} \approx 0.52$ and $$
 \operatorname{df}_{\operatorname{opt}} = \operatorname{df}_{\lambda_{\operatorname{opt}}} \approx 5.286, \quad \widehat{\operatorname{Err}_{\operatorname{in}}}_\text{min} \approx 316.86. 
 $$
 
-*Note that you will get different results if you consider another grid of $\lambda$ values.*
-
+*Note that you will get different results if you consider another grid of* $\lambda$ values.
 
 ```{r}
 lambda.results |>
@@ -468,7 +428,6 @@ lambda.results |>
   )
 ```
 
-
 We also plot the fitted values of the best in-sample model against the original unpenalized model
 
 ```{r}
@@ -495,24 +454,21 @@ ggplot(bike, aes(Temperature, Count)) +
   )
 ```
 
-
-
 #### 8. Implement cross-validation to estimate the expected generalization error. Compare graphically $\operatorname{err}$, $\widehat{\operatorname{Err}}_{\operatorname{in}}$ and $\widehat{\operatorname{Err}}$ as functions of the effective degrees of freedom.
 
 *Note: There is a subtle difference between the following two procedures: i) splitting the data and recomputing the model matrix using `poly()` on a subset of the data; and ii) subsetting the model matrix `X` that is computed from all data. You may want to explore this difference and think about which of the two procedures is most appropriate.*
 
-We have already compared $\operatorname{err}$ and $\widehat{\operatorname{Err}_{\operatorname{in}}}$ as functions of the effective degrees of freedom. We now also perform cross-validation. 
+We have already compared $\operatorname{err}$ and $\widehat{\operatorname{Err}_{\operatorname{in}}}$ as functions of the effective degrees of freedom. We now also perform cross-validation.
 
-We use squared-error-loss, $K = 10$, and $M = 20$ random fold assignments. At every data split, we use `poly` on the reduced dataset to make sure that the model matrix is orthogonal (see the note). 
+We use squared-error-loss, $K = 10$, and $M = 20$ random fold assignments. At every data split, we use `poly` on the reduced dataset to make sure that the model matrix is orthogonal (see the note).
 
-The procedure can be summarized as 
+The procedure can be summarized as
 
-1. Split the observations into training and test sets.
-2. Construct the polynomial bases using the training data. Ensures that $\mathbf{X}_{\operatorname{train}}$ is orthogonal. 
-3. Fit all penalized models on the training data. 
-4. Use `predict()` on the training `poly` object to construct the validation basis.
-5. Evaluate squared prediction errors on the held-out observations.
-
+1.  Split the observations into training and test sets.
+2.  Construct the polynomial bases using the training data. Ensures that $\mathbf{X}_{\operatorname{train}}$ is orthogonal.
+3.  Fit all penalized models on the training data.
+4.  Use `predict()` on the training `poly` object to construct the validation basis.
+5.  Evaluate squared prediction errors on the held-out observations.
 
 Within each fold, `gamma`, `beta.hat`, `shrinkage`, and `beta.lamb` are calculated as in Questions 2 and 6.
 
@@ -601,6 +557,7 @@ lambda.results <- lambda.results |>
 For every value of $\lambda$, `cv.error` is the average squared prediction error over all held-out observations and all $M$ repetitions.
 
 We plot the cross-validated error as a function of the effective degrees of freedom
+
 ```{r}
 cv.plot <- ggplot(
   lambda.results,
@@ -617,6 +574,7 @@ cv.plot
 ```
 
 And as for the in-sample error, we find the optimum
+
 ```{r}
 best.cv <- lambda.results |>
   slice_min(cv, n = 1, with_ties = FALSE) |>
@@ -628,6 +586,7 @@ best.cv
 The smallest cross-validation error on the chosen grid is obtained at approximately $\lambda=`{r} round(best.cv$lambda, 3)`$, corresponding to $\operatorname{df}_\lambda=`{r} round(best.cv$df, 2)`$.
 
 Finally, we make the overall comparison
+
 ```{r}
 lambda.results |>
   pivot_longer(
@@ -704,17 +663,14 @@ plot.cv <- lambda.results |>
 plot.cv
 ```
 
-
 The training error decreases with model flexibility because it is evaluated on the same observations used for fitting. The estimated in-sample error and cross-validation error correct this optimism in different ways and therefore need not have identical minima.
 
-The difference between the two selected models is not a contradiction. The analytic criterion estimates the in-sample error, where new outcomes are predicted at the observed predictor values, using the correction
-$$
+The difference between the two selected models is not a contradiction. The analytic criterion estimates the in-sample error, where new outcomes are predicted at the observed predictor values, using the correction $$
 \widehat{\operatorname{Err}}_{\operatorname{in}}
 =
 \operatorname{err}
 +\frac{2\hat\sigma^2}{n}\operatorname{df}_\lambda.
-$$
-In contrast, 10-fold cross-validation refits the entire procedure on training samples of size $0.9n=45$ and evaluates predictions on held-out observations. It therefore estimates approximately $\operatorname{Err}(45)$ rather than the in-sample error for the model fitted to all $50$ observations. The smaller training samples make the variability of flexible fits more visible, which can make cross-validation favor stronger penalization and fewer effective degrees of freedom. Both criteria nevertheless select an intermediate model rather than either the unpenalized model or the limiting linear model. 
+$$ In contrast, 10-fold cross-validation refits the entire procedure on training samples of size $0.9n=45$ and evaluates predictions on held-out observations. It therefore estimates approximately $\operatorname{Err}(45)$ rather than the in-sample error for the model fitted to all $50$ observations. The smaller training samples make the variability of flexible fits more visible, which can make cross-validation favor stronger penalization and fewer effective degrees of freedom. Both criteria nevertheless select an intermediate model rather than either the unpenalized model or the limiting linear model.
 
 We can also visualize the fit from the best cross-validated model
 
@@ -749,8 +705,7 @@ ggplot(bike, aes(Temperature, Count)) +
   )
 ```
 
-
-Finally, we discuss the subtlety noted in the note, where we subset the model matrix instead of the data. This does not generally preserve the orthogonality of the model matrix and the result from question 2 then cannot be used. 
+Finally, we discuss the subtlety noted in the note, where we subset the model matrix instead of the data. This does not generally preserve the orthogonality of the model matrix and the result from question 2 then cannot be used.
 
 The function below intentionally constructs `X` before cross-validation and then splits by subsetting its rows. It otherwise follows the structure of `cv.penalized()`.
 
@@ -857,71 +812,48 @@ bind_rows(
 )
 ```
 
-This second implementation is deliberately not the preferred one. First, the polynomial basis has been computed using all predictor observations before the split, so the validation predictors have influenced the preprocessing. Second, although the full matrix `X` has orthogonal columns, `X.train <- X[train, ]` generally does not. Consequently, the update
-$$
+This second implementation is deliberately not the preferred one. First, the polynomial basis has been computed using all predictor observations before the split, so the validation predictors have influenced the preprocessing. Second, although the full matrix `X` has orthogonal columns, `X.train <- X[train, ]` generally does not. Consequently, the update $$
 \hat\beta_{\lambda,j}
 =
 \frac{1}{1+\lambda\omega_j}\hat\beta_j
-$$
-is no longer justified for the row-subsetted training matrix. A mathematically correct fit for this fixed, nonorthogonal `X.train` would instead solve the general penalized normal equation for every $\lambda$; however, that would still represent a different preprocessing procedure from recomputing `poly()` within each training fold.
+$$ is no longer justified for the row-subsetted training matrix. A mathematically correct fit for this fixed, nonorthogonal `X.train` would instead solve the general penalized normal equation for every $\lambda$; however, that would still represent a different preprocessing procedure from recomputing `poly()` within each training fold.
 
-
----
+------------------------------------------------------------------------
 
 ## Exercise 1
 
 Add the exercise and its solution here.
 
-
-
-
 ## Exercise 8.3
 
-Let $\eta_0$ and $\eta_1$ be independent such that $\eta_1$ is distributed identically to $\eta_0 + \xi$ for some $\xi \in \mathbb{R}$. Let $F_0$ and $F_1$ denote respectively the distribution function of $\eta_0$ respectively $\eta_1$. Assume that $F_0$ is continuous. Recall that whenever the $\mathbf{E}(|f(\eta_0)|) < \infty$ we have
-$$
+Let $\eta_0$ and $\eta_1$ be independent such that $\eta_1$ is distributed identically to $\eta_0 + \xi$ for some $\xi \in \mathbb{R}$. Let $F_0$ and $F_1$ denote respectively the distribution function of $\eta_0$ respectively $\eta_1$. Assume that $F_0$ is continuous. Recall that whenever the $\mathbf{E}(|f(\eta_0)|) < \infty$ we have $$
 \mathbf{E}(f(\eta_0)) = \int f(x) dF_0(x),
-$$
-Where the right hand side is a Stieltjes integral. The above fact is sufficient to solve the exercise, but if you are unfamiliar with the Stieltjes integral and want to know more, you can consult [Wikipedia](https://en.wikipedia.org/wiki/Riemann%E2%80%93Stieltjes_integral).
+$$ Where the right hand side is a Stieltjes integral. The above fact is sufficient to solve the exercise, but if you are unfamiliar with the Stieltjes integral and want to know more, you can consult [Wikipedia](https://en.wikipedia.org/wiki/Riemann%E2%80%93Stieltjes_integral).
 
 ### 1.
 
-Recall that 
-$$
+Recall that $$
 \text{AUC} = \mathbf{P}(\eta_0 < \eta_1) + \frac{1}{2}\mathbf{P}(\eta_0 = \eta_1)
-$$
-We first show that the second term vanishes. Let $\tilde{\eta}_0$ have the same distribution as $\eta_0$ and be independent of $\eta_0$. Then, by the tower property,
-$$
+$$ We first show that the second term vanishes. Let $\tilde{\eta}_0$ have the same distribution as $\eta_0$ and be independent of $\eta_0$. Then, by the tower property, $$
 \mathbf{P}(\eta_0 = \eta_1) = \mathbf{P}(\eta_0 = \tilde\eta_0 + \xi) = \mathbf{E}(\mathbf{P}(\eta_0 = \tilde\eta_0 + \xi|\tilde\eta_0)),
-$$
-and by independendence of $\eta_0$ and $\tilde \eta_0$ as well as the continuity of $F_0$,
-$$
+$$ and by independendence of $\eta_0$ and $\tilde \eta_0$ as well as the continuity of $F_0$, $$
 \mathbf{P}(\eta_0 = \tilde\eta_0 + \xi|\tilde\eta_0) = F_0(\tilde\eta_0 + \xi) - \lim_{t \uparrow \tilde\eta_0 + \xi}F_0(t) = 0,
-$$
-which shows the desired. Thus,
-$$
+$$ which shows the desired. Thus, $$
 \text{AUC} = \mathbf{P}(\eta_0 < \eta_1) = \mathbf{P}(\eta_0 \leq \eta_1),
-$$
-and applying the tower property once more shows
-$$
+$$ and applying the tower property once more shows $$
 \mathbf{P}(\eta_0 \leq \eta_1) = \mathbf{E}(\mathbf{P}(\eta_0 \leq \tilde\eta_0 + \xi|\tilde\eta_0)) = \mathbf{E}(F_0(\tilde \eta + \xi)) = \int F_0(x + \xi)dF_0(x) := G(\xi).
-$$
-And we conclude that
-$$
+$$ And we conclude that $$
 \text{AUC} = G(\xi).
 $$
 
 ### 2.
 
-Let $\tilde{\eta}$ be as above. We can use the same argument as above to see that
-$$
+Let $\tilde{\eta}$ be as above. We can use the same argument as above to see that $$
 \mathbf{P}(\eta_0 - \tilde\eta_0 \leq z) = G(z).
-$$
-We conclude that $G$ is the distribution function for the random variable $\eta_0 - \tilde \eta_0$
+$$ We conclude that $G$ is the distribution function for the random variable $\eta_0 - \tilde \eta_0$
 
-### 3. 
+### 3.
 
-Let now $\eta_0 \sim \mathcal{N}(\mu, \sigma^2)$. Then, $\eta_0 - \tilde{\eta}_0 \sim \mathcal{N}(0, 2\sigma^2)$. Combining this with the result from 2., we find that, 
-$$
+Let now $\eta_0 \sim \mathcal{N}(\mu, \sigma^2)$. Then, $\eta_0 - \tilde{\eta}_0 \sim \mathcal{N}(0, 2\sigma^2)$. Combining this with the result from 2., we find that, $$
 \text{AUC} = G(\xi) = \Phi\left(\frac{\xi}{\sqrt{2}\sigma}\right)
 $$
-
