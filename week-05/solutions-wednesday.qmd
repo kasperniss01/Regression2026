@@ -128,7 +128,6 @@ To fix this one could compute the "exact" Poisson confidence interval. Consult t
 
 
 ### 10.1.2
-*Fit the model with additive main effects of the three categorical variables. Investigate the model fit and compare it with the saturated model.*
 
 First we fit the additive main effects model.
 
