@@ -1,7 +1,456 @@
 ---
-title: "Week 5: Wednesday Solutions"
+title: "Week 5 Wednesday"
+author: "Clara Rosengaard Groth"
+date: "2026-09-26"
+format:
+  html:
+    html-math-method: mathjax
 ---
 
-## Exercise 1
+## Exercise 10.1
 
-Add the exercise and its solution here.
+
+```{r setup, include=FALSE}
+library(RwR)
+library(dplyr)
+library(tidyverse)
+library(RwR)
+library(ggplot2)
+library(tibble)
+library(broom)
+library(splines)
+library(gridExtra)
+theme_set(theme_bw())
+```
+
+### 10.1.1
+We are considering models of the form $Y_i \sim \text{Pois}(\mu_i)$ with
+$$\mu_i = N_i e^{X_i^T \beta},$$
+
+where $X_i$ are predictors for the $i$-th group derived from the categorical variables and $p_i = \frac{\mu_i}{N_i} = e^{X_i^T \beta}$ are the proportions of the claims of in the $i$-th group. 
+
+First we load the data.
+```{r }
+data(car, package = "RwR")
+```
+
+We want to fit the saturated model. Note that a saturated model is a model that has the same number of parameters as data points, which in this case is the number of groups. Since all three predictors are categorical with 4 levels, including all interactions gives one parameter for each of the $4\cdot 4 \cdot 4 \cdot 4 = 64$ combinations.
+
+As described in Chapter 10, the multiplicative model can be fitted using the `glm()` function in R with a Poisson outcome distribution and a log link. The log link corresponds to the canonical (and default) link for the Poisson distribution, so we don't need to specify it directly in the function call. Since 
+$$\mu_i = e^{\log(N_i)+X_i^T \beta},$$ 
+the term $\log(N_i)$ enters the linear predictor with a coefficient of $1$, so we include an offset for `log(Holders)`. This fixes the coefficient at $1$. 
+
+```{r}
+sat_model <- glm(Claims ~ offset(log(Holders))+Age*District*Motor, data = car, family = poisson)
+```
+
+We use `predict()` with `type = "link"` and `se.fit = TRUE` to get predictions on the scale of the linear predictor $\hat{\eta}_i = \log(N_i) + X_i^T \hat{\beta}$ and the corresponding standard errors for $\hat{\eta}_i$. As the offset $\log(N_i)$ is constant and known, 
+$$\text{SE}(\hat{\eta}_i) = \text{SE}(X_i^T \hat{\beta}) = \text{SE}(\log(p_i)).$$
+
+This means that `se.fit` is the standard error of the proportion, and we must take the exponential of the constructed confidence interval. We have
+$$\hat{p}_i = \frac{\hat{\mu}_i}{N_i} = e^{\hat{\eta}_i - \log(N_i)},$$
+and
+$$\exp\Bigl(\log(\hat{p}_i) \pm 1.96 \widehat{\text{SE}}(\log(\hat{p_i}))\Bigr),$$
+and this is implemented below.
+
+```{r}
+predSat <- predict(sat_model, newdata = car, type = "link", se.fit = TRUE)
+predFrameSat <- cbind(car, fit = predSat$fit, se.fit = predSat$se.fit)
+
+predFrameSat$p_hat <- exp(predFrameSat$fit - log(predFrameSat$Holders))
+
+predFrameSat$lower_glm <- exp(predFrameSat$fit - log(predFrameSat$Holders) 
+                          - 1.96 * predFrameSat$se.fit)
+
+predFrameSat$upper_glm <- exp(predFrameSat$fit - log(predFrameSat$Holders) 
+                          + 1.96 * predFrameSat$se.fit)
+```
+
+
+```{r}
+ggplot(
+  predFrameSat, aes(x = Motor, y = p_hat, group = Age, color = Age)) +
+  geom_point(size = 2) +
+  geom_line() +
+  geom_errorbar(aes(ymin = lower_glm, ymax = upper_glm), width = 0.1) +
+  facet_wrap(~ District) +
+  labs(x = "Motor", y = "Estimated proportion of claims", color = "Age") 
+```
+
+We have just using `glm()` to compute estimates and confidence intervals. The hint tells us that this can also be done using elementary computations. As the model is saturated and each group has its own fitted mean, consequently $\hat{\mu}_i = Y_i = \text{Claims}_i$ and $\hat{p_i} = \frac{\text{Claims}_i}{\text{Holders}_i}$. 
+
+This is easily verified as below.
+
+```{r}
+predFrameSat$observed_prop <- car$Claims / car$Holders
+
+cbind(
+  glm_estimate = predFrameSat$p_hat,
+  direct_estimate = predFrameSat$observed_prop
+) %>% head()
+
+```
+
+The confidence intervals can also be computed without using the GLM framework. We can also view the framework as: there is $N_i$ policy holder for $i$ groups, where holder $j$ makes $Z_j \sim \text{Pois}(p_i)$ claims. Then
+$$Y_i = Z_1 + ... + Z_{N_i} \sim \text{Pois}(N_i p_i) = \text{Pois}(\mu_i),$$
+
+with $\hat{p_i} = \frac{Y_i}{N_i} = \bar{Z}$. For each group we have an independent sequence of $Z_1, ..., Z_{N_i}$ for which the CLT applies such that 
+$$\sqrt{N_i} (Z_n-p_i) \xrightarrow{d} \mathcal{N}(0, p_i).$$
+
+Then by the delta method with $g(x)=\log(x)$,
+$$\sqrt{N_i} (\log(Z_n)-\log(p_i)) \xrightarrow{d} \mathcal{N}\Bigl(0, \frac{p_i}{p_i^2}\Bigr),$$
+
+and confidence intervals can be constructed as
+$$\exp\Bigl(\log(\hat{p_i}) \pm 1.96 \sqrt{\frac{1}{p_i N_i}}\Bigr).$$
+
+Using that $p_i N_i = \mu_i = Y_i$ for the saturated model, we can construct confidence intervals directly.  
+```{r}
+predFrameSat$se_direct <- 1 / sqrt(predFrameSat$Claims)
+
+predFrameSat$lower_direct <- exp(log(predFrameSat$p_hat) - 1.96 * predFrameSat$se_direct)
+predFrameSat$upper_direct <- exp(log(predFrameSat$p_hat) + 1.96 * predFrameSat$se_direct)
+
+cbind(
+  glm_lower = predFrameSat$lower_glm,
+  glm_upper = predFrameSat$upper_glm,
+  direct_lower = predFrameSat$lower_direct,
+  direct_upper = predFrameSat$upper_direct
+) %>% head()
+
+```
+The confidence intervals are identical and both confidence interval is constructed on log-scale and then then the exponential is taken. This creates an asymmetric interval that is positive, which is sensible for proportions of claims that cannot be negative.
+
+We note that the construction of the confidence intervals creates issues for $Y_i = 0$, which is the case for one group.
+```{r}
+predFrameSat %>% filter(Claims == "0") %>% select(Claims, p_hat, se.fit, se_direct, lower_glm, upper_glm, lower_direct, upper_direct)
+```
+To fix this one could compute the "exact" Poisson confidence interval. Consult the Poisson distribution Wikipedia page (https://en.wikipedia.org/wiki/Poisson_distribution) for an in-depth explanation of the "exact" interval.  
+
+
+### 10.1.2
+*Fit the model with additive main effects of the three categorical variables. Investigate the model fit and compare it with the saturated model.*
+
+First we fit the additive main effects model.
+
+```{r}
+add_model <- glm(Claims ~ offset(log(Holders))+Age+District+Motor, data = car, family = poisson(link = "log"))
+```
+
+And then we construct the deviance residual plots for both models.
+
+```{r}
+p_sat <- qplot(fitted(sat_model), residuals(sat_model, type = "deviance")) +
+xlab("Fitted values") +
+ylab("Deviance residuals") + geom_smooth() + ylim(-2,2)
+
+
+p_add <- qplot(fitted(add_model), residuals(add_model, type = "deviance")) +
+xlab("Fitted values") +
+ylab("Deviance residuals") + geom_smooth()
+
+grid.arrange(p_sat, p_add, ncol = 2)
+```
+
+Not surprisingly, the saturated model has 0 residual deviance, as it has a parameter for each observation. 
+The residual plot for the the additive main effects model is difficult to interpret as we only have 64 observations. However, the spread of the residuals does not look systematic and the the smoothed line is roughly centered around zero, so at first sight there is no evidence to reject this mean-variance relationship. We can investigate further by simulating data from the fitted additive model.
+
+```{r}
+set.seed(42)
+B <- 4
+p <- list()
+
+for (b in 1:B) {
+  car$y <- simulate(add_model)[, 1]
+  sim_add_temp <- glm(y ~ offset(log(Holders)) + Age + District + Motor,
+                 data = car, family = poisson)
+  sim_tmp_diag <- augment(sim_add_temp, type.residuals = "deviance", type.predict = "response")
+  p[[b]] <- ggplot(sim_tmp_diag, aes(.fitted, .resid)) + geom_point() +
+  xlab("Fitted values") + ylab("Deviance residuals") + geom_smooth()
+}
+
+
+grid.arrange(grobs=p, ncol = B/2)
+```
+
+The simulated residual plots resemble the observed one both in terms of range of the residuals and the look of the smoothed line, which is also curved for some of the simulated data sets. So a curved smoothed line is not necessarily evidence against the model.
+
+Lastly we test the additive main effects model against the saturated model using `anova()` as the hint described. The null hypothesis is that all interaction coefficients are zero.
+
+```{r}
+anova(add_model, sat_model, test = "LRT")
+```
+
+Relying on the standard $\chi^2_{54}$ approximation of the deviance test, we cannot reject the null hypothesis and there is therefore no evidence to suggest the additive main effects model is inadequate. 
+
+### 10.1.3
+
+From definition 5.2 the deviance test statistic is $D_0 - D$, where $D_0$ is the deviance for the null hypothesis model (here the additive) and $D$ is the deviance for the larger model (here the saturated). By, (5.8) 
+$$D_0 - D \overset{\text{approx}}{\sim} \varphi \chi^2_{p-p_0}. $$
+
+For the Poisson family dispersion parameter is fixed at $\varphi=1$ (the variance function is $\mathcal{V}(\mu)= \mu$ (Example 4.6) and $\text{Var}(Y_i \mid X_i) = \mu_i$).
+The saturated model has deviance $D= 0$, and we need not fit it in the simulations.
+
+This means that we just need to check if the deviance test statistic for the additive model i.e. $D_0$ is approximately $\chi^2_{54}$-distributed, as $p=64$ and $p=10$. We simulate the $Y$ under the null hypothesis and compute the deviance test statistic for each simulation.
+
+```{r}
+B <- 10000
+sim_deviance <- numeric(B)
+
+for (b in 1:B) {
+  car$y <- simulate(add_model)[, 1]
+  sim_add <- glm(y ~ offset(log(Holders)) + Age + District + Motor,
+                 data = car, family = poisson)
+  sim_deviance[b] <- deviance(sim_add)
+}
+```
+
+We then compare the distribution of the deviance test statistics to the density of the $\chi^2_{54}$-distribution.
+
+```{r}
+sim_dat <- data.frame(deviance = sim_deviance)
+
+df_theory <- df.residual(add_model)
+
+ggplot(sim_dat, aes(x = deviance)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "lightblue1",color = "blue") +
+  stat_function(fun = dchisq, args = list(df = df_theory), linewidth = 1) +
+  labs(x = "Deviance test statistic", y = "Density") +
+  theme_minimal()
+```
+
+
+```{r}
+c(simulated_mean = mean(sim_deviance), theoretical_mean = df_theory)
+c(simulated_var = var(sim_deviance), theoretical_var = 2 * df_theory)
+```
+
+The deviance test statistics looks $\chi^2$-distributed, but not quite with the degrees of freedom that theory dictates (the distribution looks slightly shifted to the right). Note that the mean of the simulated distribution is approximately $55$ and not $54$. 
+
+However, note that the $\chi^2$-approximation is an asymptotic result. The relevant asymptotics are not more groups (these are defined by the predictors), but expected claims counts $\mu_i$ in each group. Some groups have few policy holders and therefore few expected claims, and in these groups the deviance test statistics is not well approximated by the $\chi^2$-theory. 
+
+To see if this matters for the conclusion in 10.1.2, we can compare the p-values from the $\chi^2_{54}$-approximation to the p-value from the simulated distribution.
+
+```{r}
+c(chisq_approx = pchisq(deviance(add_model), df_theory, lower.tail = FALSE),
+  simulated = mean(sim_deviance >= deviance(add_model)))
+```
+
+We see that our conclusion would not change.
+
+
+## Exercise 10.3
+
+```{r}
+data(vegetables, package = "RwR")
+```
+
+We are now considering models of the following form
+$$\log(\mathbb{E}(Y \mid N, X)) = \gamma \log(N) + X^T \beta.$$
+
+This is a generalization of model (10.1) where $\gamma$ is fixed at $1$ by an offset. Here however, $\log(N)$ enters as an ordinary predictor and the parameter $\gamma$ is estimated.  
+
+Throughout this exercise we will compare models of the generalized form to those fitted in Chapter 10. To be able to do so, we clean the data in the same way. Justification of doing so is discussed in Chapter 10. 
+
+```{r}
+# Data cleaning
+vegetables <- filter(vegetables, !is.na(discount), week != 2)
+normal_sale <- 
+    group_by(vegetables, store) |>
+        summarize(
+            meanNormSale = mean(normalSale)
+        ) |> 
+        arrange(meanNormSale)
+
+store_order <- as.character(normal_sale$store)
+
+vegetables <- left_join(vegetables, normal_sale) |>
+    mutate(
+        store = factor(store, levels = store_order)
+    )
+```
+
+Throught the exercise we will need to investigate the summaries of the `glm()` output. The below is a helper function, to extracts the relevant coefficients, as we do not want to consider all the estimated parameters for the individual stores. We also define a helper function to estimate the dispersion parameter, as it is computed in Chapter 10.
+
+```{r}
+coef_table <- function(model) {
+  tidy(model) %>% filter(!startsWith(term, "store"))
+}
+
+dispersion <- function(model) {
+  sum(residuals(model, type = "pearson")^2) / df.residual(model)
+}
+```
+
+
+### Poisson models
+
+The first model considered is an additive main effect Poisson model. We also introduce the corresponding generalized Poisson model without an offset.
+
+```{r}
+form_poisson <- sale ~ offset(log(normalSale)) + store + ad + discount + discountSEK
+gform_poisson <- sale ~ log(normalSale) + store + ad + discount + discountSEK
+
+vegetables_glm <- glm(form_poisson, family = poisson, data = vegetables)
+g_vegetables_glm <- glm(gform_poisson, family = poisson, data = vegetables)
+
+coef_table(vegetables_glm)
+coef_table(g_vegetables_glm)
+
+c(offset = dispersion(vegetables_glm), generalized = dispersion(g_vegetables_glm))
+```
+
+Here we printed the coefficients, std.error, etc. of both models without the coefficient for the individual stores. Note that in the output for the generalized model, the coefficient for `log(normalSale)` is added, and allowing it to be estimated results in $\hat{\gamma} \approx 0.196$, which is quite far from the fixed value of $1$ in the offset model. With the original offset model, the assumption is that 
+$$\mu = N e^{X^T \beta},$$
+
+i.e. that sales are proportional to normal sales. But with the generalized model, we assume
+$$\mu = N^{\gamma}e^{X^T \beta}.$$
+With $\gamma< 1$ sales increase less than proportionally with normal sales.
+
+Because `store` is included in the model, it absorbs the between-store differences, and $\gamma$ is estimated primarily from within-store variation in `normalSale` across weeks. Since `ad` is determined by week, `ad` and `log(normalSale)` may explain some of the same between week variation. Allowing $\gamma$ to vary can therefore change the estimated advertisement campaign effects. 
+
+Finally, note that the Poisson standard errors are too small because of the overdispersion ($\hat\varphi \approx 11$). Tests based on the assumption that $\varphi = 1$ should therefore not be trusted. 
+As in Chapter 10, we adjust the analysis for overdispersion by using the quasi Poisson family. We do this before doing inference.
+
+```{r}
+vegetables_quasi_glm <- glm(form_poisson, family = quasipoisson, data = vegetables)
+g_vegetables_quasi_glm <- glm(gform_poisson, family = quasipoisson, data = vegetables)
+
+coef_table(vegetables_quasi_glm)
+coef_table(g_vegetables_quasi_glm)
+
+```
+Note that the estimated coefficients are the same as in the Poisson model, but the estimated standard errors are more appropriate. 
+
+We then investigate the fit of both models using the residuals plots.
+
+```{r}
+vegetables_quasi_diag <- augment(vegetables_quasi_glm, type.residuals = "pearson")
+g_vegetables_quasi_diag <- augment(g_vegetables_quasi_glm, type.residuals = "pearson")
+
+p1 <- ggplot(vegetables_quasi_diag, aes(.fitted, .resid)) +
+    geom_point(alpha = 0.3) + 
+    geom_smooth(linewidth =  1, fill = "blue") +
+    xlab("fitted values") + ylab("Pearson residuals")
+p2 <- ggplot(g_vegetables_quasi_diag, aes(.fitted, .resid)) +
+    geom_point(alpha = 0.3) + 
+    geom_smooth(linewidth =  1, fill = "blue") +
+    xlab("fitted values") + ylab("Pearson residuals")
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+From these residual plots, we can conclude the same things as in Chapter 10. The residuals are mostly centered around zero, and there is no clear indication that the mean value is misspecified. Second, as we already knew, there is overdispersion in the model corresponding to the Poisson distribution, and the linear relation between mean and variance, that the Poisson model dictates, is not appropriate. This is revealed both in the "trumpet" shape of the residuals. 
+The smoothed line for the generalized model without offset is slightly closer to zero across the range of the linear predictor than for the offset model, which might be consistent with a better mean-specification.
+
+Before continuing with different test and inference, we want to examine better model fits. Both Poisson specifications remain strongly overdispersed, and freeing $\gamma$ does not solve the inappropriate Poisson mean-variance relationship. As in Chapter 10, this motivates considering the Gamma model.
+
+### Gamma models
+
+As in Chapter 10, we drop `discountSEK` due to its collinearity with `discount`. We also consider a spline expansion of `discount`. 
+```{r}
+form_gamma <- sale ~ offset(log(normalSale)) + store  + ad + discount
+gform_gamma <- sale ~ log(normalSale) + store  + ad + discount
+
+form_gamma_ns <- sale ~ offset(log(normalSale)) + store  + ad +
+  ns(discount, knots = c(20, 30, 40), Boundary.knots = c(0, 50))
+gform_gamma_ns <- sale ~ log(normalSale) + store  + ad +
+  ns(discount, knots = c(20, 30, 40), Boundary.knots = c(0, 50))
+
+vegetables_gamma <- glm(form_gamma, family = Gamma("log"), data = vegetables)
+g_vegetables_gamma <- glm(gform_gamma, family = Gamma("log"), data = vegetables)
+vegetables_gamma_ns <- glm(form_gamma_ns, family = Gamma("log"), data = vegetables)
+g_vegetables_gamma_ns <- glm(gform_gamma_ns, family = Gamma("log"), data = vegetables)
+
+coef_table(vegetables_gamma)
+coef_table(g_vegetables_gamma)
+coef_table(vegetables_gamma_ns)
+coef_table(g_vegetables_gamma_ns)
+
+```
+
+Again we see that $\hat{\gamma}$ is estimated to be well below $1$ for both the Gamma and the Gamma spline extended model.
+
+```{r}
+vegetables_gamma_diag <- augment(vegetables_gamma, type.residuals = "pearson")
+g_vegetables_gamma_diag <- augment(g_vegetables_gamma, type.residuals = "pearson")
+
+p1 <- ggplot(vegetables_gamma_diag, aes(.fitted, .resid)) +
+    geom_point(alpha = 0.3) + 
+    geom_smooth(linewidth =  1, fill = "blue") +
+    xlab("fitted values") + ylab("Pearson residuals")
+p2 <- ggplot(g_vegetables_gamma_diag, aes(.fitted, .resid)) +
+    geom_point(alpha = 0.3) + 
+    geom_smooth(linewidth =  1, fill = "blue") +
+    xlab("fitted values") + ylab("Pearson residuals")
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+The model fit has improved a lot. It is clear that the Gamma models fits the data well, and has a much more appropriate mean-variance relationship. The smoothed line is centered around 0, and there is no structural spread of the residuals. As it was the case for the Poisson-models, it seems like the smoothed line for the generalized model is slightly closer to zero across the range of the linear predictor than for the offset model. 
+
+As the it is concluded in Chapter 10 that the inclusion of the nonlinear spline expansion does not change the predicted values by very much and that the residual plots are very much alike, we will not compare the residual plots for the spline expansion model.
+
+Now that we have a reasonable model fit, it makes sense to formally test if $\gamma = 1$. This can be done using `anova()` for the Gamma model with the offset compared to the Gamma model with estimated $\gamma$. The null hypothesis is $H_0 : \gamma = 1$. 
+
+```{r}
+anova(vegetables_gamma, g_vegetables_gamma, test = "LRT")
+```
+
+We can clearly reject the null hypothesis, and we check if the conclusion is the same in the spline extension.
+```{r}
+anova(vegetables_gamma_ns, g_vegetables_gamma_ns, test = "LRT")
+```
+
+We also reject the null hypothesis in the spline extension. In Chapter 10, the Gamma spline model is chosen to be reported, so we also continue with this.
+
+To assess the consequences for predictions of estimating $\gamma$ rather than fixing it at $\gamma =1$, we compare the fitted values from both models. 
+
+```{r}
+tibble(
+  offset = fitted(vegetables_gamma_ns),
+  free   = fitted(g_vegetables_gamma_ns)
+  ) %>%
+ggplot(aes(offset, free)) +
+  geom_point(alpha = 0.3) +
+  geom_abline(color = "blue") +
+  scale_x_log10() + scale_y_log10() +
+  xlab("Fitted vales (offset)") + ylab("Fitted values (free gamma)")
+```
+
+We see that most points falls close to the diagonal line, implying that the models are similar in terms of predictions. We can also visualize the expected sale. As in Chapter 10, we choose a typical store.
+
+```{r}
+n206 <- vegetables %>% filter(store == "206") %>% pull(normalSale) %>% mean()
+
+pred_frame <- expand.grid(
+  normalSale = n206,
+  store = factor(206),
+  ad = factor(c(0, 1)),
+  discount = seq(10, 50, 1)
+)
+
+pred_sale <- predict(vegetables_gamma_ns, newdata = pred_frame, se.fit = TRUE)
+pred_sale_g <- predict(g_vegetables_gamma_ns, newdata = pred_frame, se.fit = TRUE)
+
+pred_offset <- cbind(pred_frame, fit = pred_sale$fit, se.fit = pred_sale$se.fit, model = "Offset")
+pred_free <- cbind(pred_frame, fit = pred_sale_g$fit, se.fit = pred_sale_g$se.fit, model = "Free gamma")
+
+preds <- bind_rows(pred_offset, pred_free)
+
+
+ggplot(preds, aes(discount, exp(fit), color = model, fill = model)) +
+  geom_ribbon(
+    aes(ymin = exp(fit - 2 * se.fit), ymax = exp(fit + 2 * se.fit)),
+    alpha = 0.2, color = NA
+  ) +
+  geom_line() +
+  facet_grid(cols = vars(ad), labeller = label_both) +
+  ylab("Predicted sale") +
+  ggtitle(paste0("Store 206 with normal sale = ", round(n206, 1)))
+```
+
+
+For the representative store, the difference between the two fitted curves becomes somewhat larger at higher discount levels, although the overall differences remain subtle.
+
+Throughout Chapter 10 it is assumed that sales are proportional to normal sales, as $\log(N)$ is included as an offset. Letting $\gamma$ be estimated, allows us to check this assumption. The estimated $\hat{\gamma}$ is substantially below one for both the Poisson and Gamma models, indicating that the expected sales increase less than proportionally with normal sales after controlling for `store`, `advertisement` and `discount`. Additionally, for the Gamma models, likelihood ratio tests showed that $\gamma$ is significantly different from $1$. However, it seems like the differences in predictions are subtle, and the relaxation of the proportionality assumption is mostly important for interpretation of predictors and inference rather than prediction.
+
+
+
