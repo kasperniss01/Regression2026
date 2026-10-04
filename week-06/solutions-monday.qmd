@@ -1,7 +1,501 @@
 ---
-title: "Week 6: Monday Solutions"
+title: "Week 6 Wednesday"
+author: "Clara Rosengaard Groth"
+date: "2026-10-02"
+format:
+  html:
+    html-math-method: mathjax
 ---
 
-## Exercise 1
+## Exercise 11.2
 
-Add the exercise and its solution here.
+Show that without censoring, the Kaplan–Meier estimator equals the empirical survival function
+
+$$\hat{S}(t)=\frac{1}{n}\sum_{i=1}^n \mathbf{1}(T_i^* > t).$$
+
+When we do not censor, this is essentially taking $C_i \to \infty,\quad \forall i\in\{1,\ldots,n\},$ as we observe every subject until the event occurs. Then
+$$
+T_i = \min\{T_i^*,C_i\}=T_i^*, \quad \text{and}
+$$
+$$
+\delta_i=\mathbf{1}(T_i^*\leq C_i)=1,
+$$
+for $i=1,\ldots,n$.
+
+By definition 11.1, the Kaplan–Meier estimator is defined as
+
+$$
+\hat S(t) = \prod_{s\leq t}\left( 1-\frac{\Delta N(s)}{Y(s)} \right),
+$$
+
+where $\Delta N(s)$ is the number of deaths at time $s$. We allow for ties and define
+
+$$s_1 < s_2 < \cdots < s_k \leq t < s_{k+1} < \cdots < s_m$$
+
+as distinct (not individual) survival times. This means that $m\leq n$, because we allow for multiple deaths/events to occur at the same time. Note that
+
+$$
+Y(s_1) = \sum_{i=1}^n \mathbf{1}(s_1\leq T_i) = n,
+$$
+
+$$
+Y(s_2) = \sum_{i=1}^n \mathbf{1}(s_2\leq T_i) = n-\Delta N(s_1) = Y(s_1)-\Delta N(s_1),
+$$
+
+and, realize that in general,
+
+$$
+Y(s_k)=\sum_{i=1}^n \mathbf{1}(s_k\leq T_i) = n-\sum_{j=1}^{k-1}\Delta N(s_j) = 
+Y(s_{k-1})-\Delta N(s_{k-1}).
+$$
+
+Therefore,
+
+$$
+\Delta N(s_k)=Y(s_k)-Y(s_{k+1}),
+$$
+
+such that the factors of the Kaplan-Meier can be rewritten as
+
+$$
+1-\frac{\Delta N(s_k)}{Y(s_k)}=1-\frac{Y(s_k)-Y(s_{k+1})}{Y(s_k)}=\frac{Y(s_{k+1})}{Y(s_k)}.
+$$
+
+Then, by expanding the product and seeing that it telescopes, 
+
+$$
+\begin{aligned}
+\hat S(t)
+&=
+\prod_{s_k\leq t}
+\left(
+\frac{Y(s_{k+1})}{Y(s_k)}
+\right)\\
+&=
+\frac{Y(s_2)}{Y(s_1)}
+\frac{Y(s_3)}{Y(s_2)}
+\cdots
+\frac{Y(s_{k+1})}{Y(s_k)}\\
+&=
+\frac{1}{Y(s_1)}Y(s_{k+1})\\
+&=
+\frac{1}{n}
+\sum_{i=1}^n
+\mathbf{1}(s_{k+1}\leq T_i)\\
+&=
+\frac{1}{n}
+\sum_{i=1}^n
+\mathbf{1}(t<T_i).
+\end{aligned}
+$$
+
+The last equality follows from the fact that $t<s_{k+1}  \Longrightarrow \{t<T_i\}=\{s_{k+1}\leq T_i\},$ since $s_{k+1}$ is the next distinct event time after $t$.
+
+Reading trough the equalities we have shown that,
+
+$$
+\hat S(t) = \frac{1}{n}\sum_{i=1}^n \mathbf{1}(T_i^*>t),
+$$
+
+since there is no censoring and $T_i=T_i^*$.
+
+
+## Exercise 11.3
+
+```{r, include=FALSE}
+#loading libraries
+library(RwR)
+library(ggplot2)
+library(gridExtra)
+library(survival)
+library(broom)
+library(splines)
+library(dplyr)
+theme_set(theme_bw())
+```
+
+
+The variable `hx` indicates if the patient has a history of cardiovascular disease. You should ignore the treatment variable `rx`. 
+
+```{r}
+data("prostate", package = "RwR")
+prostate %>% head()
+```
+
+
+### 11.3.1
+Fit a proportional hazards model using the two variables `age` and `hx` as predictors.
+
+We fit a Cox's proportional hazards model in accordance with example 11.10 using the R-function `coxph()`. 
+
+```{r}
+prostate_cox <- coxph( 
+    Surv(dtime + 0.5, status != "alive") ~ age + hx, 
+    data = prostate, 
+)
+prostate_cox %>% tidy()
+
+```
+
+Note that use the exact same data as in the example, and we add $0.5$ to all times, to avoid numerical issues. It is explained in Chapter 10, that some of the patients have survived less than one month, some survival times are registered as $0$. 
+
+
+### 11.3.2
+
+Make one or more residual plots for the model you have fitted. Does it fit the data?
+
+Section 11.5 discusses different types of residuals for survival regression models, where primarily the Cox-Snell and the Martingales residuals are covered. We therefore plot both types of residuals, and use the code from section 11.5.4 directly.
+
+```{r}
+p1 <- augment(prostate_cox, data = prostate, type.predict = "expected") |>
+    survfit(Surv(.fitted, status != "alive") ~ 1, data = _) |>
+    summary(data.frame = TRUE) |>
+    ggplot(aes(time, cumhaz)) + 
+    geom_abline(slope = 1, color = "blue") +
+    geom_point() +
+    xlab("Cox-Snell residuals") + 
+    ylab("Cumulative hazard")
+
+
+p2 <- augment(prostate_cox) |> 
+    ggplot(aes(.fitted, .resid)) +
+    geom_point(alpha = 0.4) + 
+    geom_smooth() + 
+    xlab("Fitted values") +
+    ylab("Martingale residuals")
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+Based on lemma 11.3 we expect the Cox-Snell residuals $\hat{\Lambda}_i(T_i)$  to approximately follow an exponential distribution (for no censoring). Therefore, we compare the estimated Cox-Snell residuals to the cumulative hazard for the exponential distribution, which is $\Lambda(t)=t$. The residuals should lie approximately on the straight line with slope $1$. 
+
+The use of the martingale residuals is justified by lemma 11.4, which implies that the martingale residuals have mean $0$ if $\hat{\Lambda}_i$ is the true cummulative hazard. 
+
+From the residual plots we see that the model is somewhat misspecified. The Cox-Snell residuals does not fall on the straight line for larger residuals. Also, the martingale residuals does not seem to have mean $0$, and the smoothed line is a bit curved.
+
+
+### 11.3.3 
+
+*Test the hypothesis that survival is not associated with* `hx` *given* `age`.
+
+If we want to test the hypothesis that survival is not associated with `hx` given `age`, the null hypothesis is $$H_0 : \beta_{\operatorname{hx}} = 0. $$ To test this we need to compare the full model with both `hx` and `age`, against a smaller model only containing `age`. The two models are clearly nested, and we can use `anova()`.  
+
+```{r}
+prostate_cox_small <- coxph( 
+    Surv(dtime + 0.5, status != "alive") ~ age, 
+    data = prostate, 
+)
+```
+
+```{r}
+anova(prostate_cox_small, prostate_cox, test = "LRT")
+```
+
+We can reject the null hypothesis and conclude that based on a likelihood ratio test survival is indeed associated with a history of cardiovascular disease given age.
+
+## Exercise 11.4
+
+Let $T_1^*, \ldots, T_n^*$ be independent survival times for $n$ patients and let $X_i \in \{0,1\}$ indicate if the $i$-th patient is treated $X_i = 1$ or untreated $X_i = 0$. We are interested in estimating the effect
+
+$$
+\rho =
+\frac{\operatorname{median}(T_i^* \mid X_i = 1)}
+     {\operatorname{median}(T_i^* \mid X_i = 0)}.
+$$
+
+Assume
+
+$T_i^* \sim \operatorname{Weibull}(\alpha_{X_i}, \gamma)$ with hazard rate $\lambda_i(t)=\alpha_{X_i}\gamma t^{\gamma-1},$ where $\gamma$ is the shape parameter and
+$\alpha_{X_i}$ is the scale parameter.
+
+### 11.4.1
+
+Show that 
+$$
+\rho = \left(\frac{\alpha_0}{\alpha_1}\right)^{1/\gamma}.
+$$
+
+From the definition of a median,
+
+$$P(T_i^* \leq m_{X_i} \mid X_i = x) = \frac{1}{2}.$$
+
+$T^*$ has distribution function $F$ and survival function $S$, for which $S(t) := 1 - F(t).$
+This implies 
+$$S(m_{X_i}) = \frac{1}{2}.$$
+
+From (11.1) and (11.2), we have $S(t)=\exp(-\Lambda(t))=\exp(-\alpha t^\gamma),$ where the last equality follows from Example 11.3 for a Weibull distribution. Then
+
+$$S(m_{X_i})= \exp\left(-\alpha_{X_i}m_{X_i}^{\gamma}\right) = \frac{1}{2}.$$
+
+Then
+
+$$
+m_{X_i}= \left(\alpha_{X_i}^{-1}\right)^{1/\gamma} \left(\log(2)\right)^{1/\gamma}.
+$$
+
+Which implies,
+
+$$
+\rho
+=
+\frac{
+\left(\alpha_1^{-1/\gamma}\log(2)\right)^{1/\gamma}
+}{
+\left(\alpha_0^{-1/\gamma}\log(2)\right)^{1/\gamma}
+}
+=
+\left(\frac{\alpha_0}{\alpha_1}\right)^{1/\gamma}.
+$$
+
+Note that this exercise can also be solved by looking up the median for a Weibull distribution on e.g. Wikipedia, but beware of the parametrization. 
+
+### 11.4.2
+
+Show that the Weibull model can be formulated as a proportional hazards model in terms of $\eta_i = \beta_0 + \beta_1 X_i,$ and relate $\beta_0$ and $\beta_1$ to $\alpha_0$ and $\alpha_1$.
+
+The proportional hazards model is defined by (definition 11.5)
+$$\lambda(t \mid X_i)=\lambda_0(t)e^{\eta_i},$$
+
+which gives us
+
+$\lambda(t \mid X_i = 1)=\lambda_0(t)e^{\beta_0+\beta_1},$ and $\lambda(t \mid X_i = 0)=\lambda_0(t)e^{\beta_0}.$
+
+Therefore,
+
+$$
+\frac{\lambda(t \mid X_i = 1)}{\lambda(t \mid X_i = 0)} = \frac{e^{\beta_0+\beta_1}}{e^{\beta_0}}.
+$$
+
+This is a consequence of the model assumption for proportional hazards models that the effect of $X$ enters multiplicatively only through $e^\eta$. For the Weibull model,
+
+$$
+\frac{\lambda(t \mid X_i = 1)}{\lambda(t \mid X_i = 0)} = \frac{\alpha_1 \gamma t^{\gamma-1}}{\alpha_0 \gamma t^{\gamma-1}} = \frac{\alpha_1}{\alpha_0}.
+$$
+
+Therefore,
+
+$$
+\frac{\alpha_1}{\alpha_0}
+=
+\frac{e^{\beta_0+\beta_1}}{e^{\beta_0}},
+$$
+
+with $\alpha_0 = e^{\beta_0},\qquad\alpha_1 = e^{\beta_0+\beta_1}.$
+
+Finally,
+$$
+\rho=\left(\frac{e^{\beta_0}}{e^{\beta_0+\beta_1}}\right)^{1/\gamma} = e^{-\beta_1/\gamma}.
+$$
+
+### 11.4.3
+
+```{r}
+data("testWei")
+```
+
+Compute and plot the Kaplan-Meier estimates of the survival function within each of the two treatment groups for the simulated `testWei` data set.
+
+First we check if there are any times very close to $0$. If there is, we might need to add a small constant to the time, as it is done throughout Chapter 11, to avoid numerical issues. 
+```{r}
+summary(testWei$time)
+```
+
+We continue the analysis without shifting the time index. 
+
+The Kaplan-Meier estimator of the survival function can be fitted using `survfit()` as explained in Section 11.2.3. Note that we use `Surv()` function to include censoring status. In this dataset censoring status is encoded in `status` where $1$ corresponds to time to event observed and $0$ corresponds to censored. Note also that we include the treatment variable `x` in the formula, to estimate the survival function for each of the treatment groups.
+
+```{r}
+Weibull_KM <- survfit(
+    Surv(time, status == 1) ~ x, 
+    data = testWei,
+)
+```
+
+We plot the estimated survival functions as in Section 11.2.3.
+
+```{r}
+p1 <- summary(Weibull_KM, data.frame = TRUE) |> 
+        ggplot(aes(time, surv, color = strata)) + 
+        geom_step() +
+        ylim(0, 1) +
+        xlab("Time") + 
+        ylab("Survival probability")+
+        theme(legend.position = "top")
+
+p1
+```
+
+
+
+### 11.4.4
+
+Use the Weibull model with fixed $\gamma = 2$ to estimate $\beta_0$ and $\beta_1$. Compare the resulting estimated survival functions from the Weibull model with the Kaplan-Meier estimates.
+
+From the previous subexercises we know that the proportial hazards Weibull model satisfies
+$$\lambda_i(t ) = \gamma t^{\gamma -1} e^{\eta_i}, \quad \eta_i = \beta_0 + \beta_1 X_i.$$
+
+Example 11.8 shows that, when $\gamma$ is fixed, the survival log-likelihood for the Weibull model is up to a constant the log-likelihood for the Poisson model with log-link for the $\delta_i$-s. This means that 
+$$\delta_i \sim \operatorname{Poisson(\mu_i)}, \quad \quad \mu_i = T_i^{\gamma}e^{\eta_i}.$$
+
+Taking the logarithm we get 
+
+$$\log(\mu_i) = \gamma \log(T_i) + \eta_i.$$
+
+This shows how implementations of generalized linear models (with Poisson regression models), can be used to fit the Weibull proportional hazards model (for fixed $\gamma$) where the survival times enters as an offset term. We can therefore estimate $\beta_0$ and $\beta_1$ using `glm()`, fitting exactly the model given above:
+
+```{r}
+gamma <- 2
+PoissonGLM <- glm((status == 1) ~ offset(log(time)*gamma) + x, 
+    data = testWei, 
+    family = "poisson"
+)
+beta_hat <- PoissonGLM %>% coefficients() 
+beta_hat
+```
+
+We are then also asked to compare the resulting estimated survival functions from the Weibull model with the Kaplan-Meier estimates. From subexercise 11.4.1 we know that $\alpha_0 = e^{\beta_0}$ and $\alpha_1 = e^{\beta_0+\beta_1},$ which results in the following survival functions
+$$S(t \mid X_i = 0) = \exp(e^{\beta_0}t^{\gamma}),$$
+
+$$S(t \mid X_i = 1) = \exp(e^{\beta_0 + \beta_1}t^{\gamma}).$$
+
+This can be straightforwardly implemented in R, and plotted using the KM-figure from subexercise 11.4.3.
+
+```{r}
+time <- seq(0, 3.5, 0.01)
+
+S_hat_x0 <- exp(-exp(beta_hat[1]) * time^gamma)
+S_hat_x1 <- exp(-exp(beta_hat[1] + beta_hat[2]) * time^gamma)
+
+Weibull_curves <- data.frame(
+  time = time,
+  S_hat_x0 = S_hat_x0,
+  S_hat_x1 = S_hat_x1
+)
+
+p1 + 
+  geom_line(data = Weibull_curves, aes(x = time, y = S_hat_x0),
+            linetype = "dashed", colour = "darkred", inherit.aes = FALSE) +
+  geom_line(data = Weibull_curves, aes(x = time, y = S_hat_x1), colour = "blue3",
+            linetype = "dashed", inherit.aes = FALSE)
+```
+
+From the figure above it seems like the estimated survival functions from the Weibull model with $\gamma=2$ corresponds well to the Kaplan-Meier estimates. There are some deviances, which we would expect due to sampling variability and the fact that KM is a nonparametric estimator.
+
+
+### 11.4.5
+
+Compute the MLE $\hat{\rho}_{\operatorname{MLE}}$ of $\rho$ based on the Weibull model (with fixed $\gamma =2$) and compute a 95% confidence interval for $\rho$. Compute also, based on the Kaplan-Meier estimates, a direct estimate, $\hat{\rho}_{\operatorname{KM}}$ of $\rho$.
+
+Using the MLE estimates of $\beta_0$ and $\beta_1$ from the previous subexercise 11.4.4, we can use the formula from exercise 11.4.2 to obtain
+$$\hat{\rho}_{\operatorname{MLE}} = e^{-\frac{\hat{\beta}_1}{\gamma}}$$
+
+```{r}
+beta1_hat_MLE <- beta_hat[2]
+rho_hat_MLE <- exp((-beta1_hat_MLE/2))
+rho_hat_MLE
+```
+
+And a confidence interval for $\hat{\beta}_1$ can be computed using the estimated standard error for $\beta_1$ in our `glm()` fit, and then transformed by $f(\beta)=e^{-\beta/2}$.
+
+```{r}
+beta1_se <- summary(PoissonGLM)$coefficients[2,2]
+beta1_CI <- beta1_hat_MLE + c(1,-1)*1.96*beta1_se
+rho_CI <- exp(-beta1_CI/2)
+rho_CI
+```
+
+We also need to compute the $\hat{\rho}_{\operatorname{KM}}$ based on the Kaplan Meier estimates. Note that the medians can be extracted directly from the `survfit()` object. 
+
+```{r}
+Weibull_KM
+```
+
+
+```{r}
+rho_hat_KM <- summary(Weibull_KM)$table[, "median"][2]/summary(Weibull_KM)$table[, "median"][1]
+rho_hat_KM
+```
+
+From the exercise description we know that the true value of $\rho$ is approximately $1.649$. Note that $\hat{\rho}_{\operatorname{MLE}}$ is much closer to $\rho \approx 1.649$ than $\hat{\rho}_{\operatorname{KM}}$. This difference may be due to sampling variability, which we will examine in the next subexercise.
+
+
+### 11.4.6
+
+Write an R program that simulates a data set (including the censoring) using the same setup as for the `testWei` data set described above. Simulate $B = 200$ data sets and compute for each data set the estimates $\hat{\rho}_{\operatorname{KM}}$ and $\hat{\rho}_{\operatorname{MLE}}$ as above and compare their distributions.
+
+First we simulate the data set. We know that time to event $T_i^*$ is Weibull distributed with shape $\gamma = 2$ and scale $\alpha_0 = e^{\beta_0}$ for $X_i=0$ and $\alpha_1 = e^{\beta_0 + \beta_1}$ for $X_i=1$, but be aware of the parametrization used in `rweibull()`, and when in doubt please consult the documentation. R uses the same parametrization as the "standard" parametrization from Wikipedia (https://en.wikipedia.org/wiki/Weibull_distribution), where in this exercise we use the "first option" parametrization.
+
+The dataset is simulated in accordance with the information given in the exercise description; $X_1 = .. = X_{100} = 0$ and $X_{101} = ... X_{200} = 1$ and the censoring are uniformly distributed on $[0,4]$.
+
+```{r}
+set.seed(42)
+N <- 200 # number of patients
+B <- 200 # number of repetitions
+beta0 <- 0
+beta1 <- -1
+gamma <- 2
+datasets <- vector("list", B)
+rho_hat_KM <- rep(NA, B)
+rho_hat_MLE <- rep(NA, B)
+
+for (i in 1:B){
+  X <- c(rep(0, 100), rep(1, 100))
+  alpha <- ifelse(X == 0, exp(beta0), exp(beta0 + beta1))
+  T_star <- rweibull(N, shape = gamma, scale = alpha^(-1/gamma))
+  C <- runif(N, min = 0, max = 4)
+  T <- pmin(T_star, C)
+  status <- ifelse(T_star <= C, 1, 0) # censoring
+  
+  datasets[[i]] <- data.frame(
+    x = X,
+    time = T,
+    status = status
+  )
+  
+  # Kaplan Meier estimator
+  Weibull_KM_i <- survfit(
+    Surv(time, status == 1) ~ x, 
+    data = datasets[[i]])
+  rho_hat_KM[i] <- summary(Weibull_KM_i)$table[, "median"][2]/summary(Weibull_KM_i)$table[, "median"][1]
+  
+  # MLE estimator
+  GLM_coefs_i <- glm((status == 1) ~ offset(log(time)*gamma) + x, 
+    data = datasets[[i]], family = "poisson") %>% coefficients() 
+  rho_hat_MLE[i] <- exp((-GLM_coefs_i[2]/gamma))
+} 
+
+```
+
+
+And we plot the simulated values using a violinplot. 
+
+```{r}
+
+estplot_data <- data.frame(
+  estimator = c(rep("KM", length(rho_hat_KM)), rep("MLE", length(rho_hat_MLE))),
+  rho_hat = c(rho_hat_KM, rho_hat_MLE))
+
+ggplot(estplot_data, aes(x = estimator, y = rho_hat, fill = estimator)) +
+  geom_violin(trim = FALSE, alpha = 0.6) +
+  geom_boxplot(width = 0.12, outlier.shape = NA, alpha = 0.8) +
+  geom_hline(yintercept = exp(-beta1 / gamma), linetype = "dashed") +
+  labs(
+    title = "Rho estimates",
+    x = "Estimator",
+    y = expression(hat(rho))
+  ) +
+  theme_minimal()
+```
+
+We can also summarize the simulated distributions:
+
+```{r}
+data.frame(
+  estimator = c("KM", "MLE"),
+  mean = c(mean(rho_hat_KM, na.rm = TRUE), mean(rho_hat_MLE, na.rm = TRUE)),
+  sd = c(sd(rho_hat_KM, na.rm = TRUE), sd(rho_hat_MLE, na.rm = TRUE))
+) 
+```
+
+
+The dashed line on the plot is the true value of $\rho$. We see that the the distributions for the two estimators are fairly alike. They both have a mean close to the true value, however there is a larger variance for the Kaplan-Meier estimator. This is perhaps not that surprising; the MLE assumes the correctly specified Weibull model, whereas KM is nonparametric. By construction in this simulation, the Weibull assumption is correct, and the parametric approach is therefore more efficient.
