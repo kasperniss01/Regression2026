@@ -354,9 +354,9 @@ beta_hat
 ```
 
 We are then also asked to compare the resulting estimated survival functions from the Weibull model with the Kaplan-Meier estimates. From subexercise 11.4.1 we know that $\alpha_0 = e^{\beta_0}$ and $\alpha_1 = e^{\beta_0+\beta_1},$ which results in the following survival functions
-$$S(t \mid X_i = 0) = \exp(e^{\beta_0}t^{\gamma}),$$
+$$S(t \mid X_i = 0) = \exp(-e^{\beta_0}t^{\gamma}),$$
 
-$$S(t \mid X_i = 1) = \exp(e^{\beta_0 + \beta_1}t^{\gamma}).$$
+$$S(t \mid X_i = 1) = \exp(-e^{\beta_0 + \beta_1}t^{\gamma}).$$
 
 This can be straightforwardly implemented in R, and plotted using the KM-figure from subexercise 11.4.3.
 
