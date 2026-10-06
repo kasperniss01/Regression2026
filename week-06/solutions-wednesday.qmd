@@ -1,7 +1,141 @@
 ---
 title: "Week 6: Wednesday Solutions"
+author: "Harald Kugler"
+date: "10.07.2026"
 ---
 
-## Exercise 1
 
-Add the exercise and its solution here.
+```{r}
+#| message: false
+library(RwR)
+library(survival)
+library(ggplot2)
+library(dplyr)
+library(broom)
+library(splines)
+
+theme_set(theme_bw())
+```
+
+## Exercise 11.5
+
+We consider the data set `lung` on lung cancer survival from the RwR package.
+
+```{r}
+data("lung", package = "RwR")
+lung <- lung |>
+    mutate(sex = factor(sex, levels = c(1, 2), labels = c("male", "female")))
+head(lung)
+```
+
+The variable `status` is a factor with levels `1` (censored) and `2` (dead), so the status indicator is `status == "2"`.
+
+### 11.5.1
+
+*Plot the Kaplan-Meier estimates of the survival functions for males and females separately.*
+
+As in Section 11.2.3 we use `survfit()` with `sex` in the formula to get a Kaplan-Meier estimate for each group.
+
+```{r}
+lung_KM <- survfit(Surv(time, status == "2") ~ sex, data = lung)
+lung_KM
+```
+
+```{r}
+summary(lung_KM, data.frame = TRUE) |>
+    ggplot(aes(time, surv, color = strata)) +
+    geom_step() +
+    ylim(0, 1) +
+    xlab("Time (days)") +
+    ylab("Survival probability") +
+    theme(legend.position = "top")
+```
+
+Women have better survival than men, with an estimated median survival time of 426 days compared to 270 days for men.
+
+### 11.5.2
+
+*Use the Cox proportional hazards model to investigate if the survival time depends upon age.*
+
+We first fit a Cox model with `age` as the only predictor and use a likelihood-ratio test of $H_0: \beta_{\text{age}} = 0$.
+
+```{r}
+lung_cox_age <- coxph(Surv(time, status == "2") ~ age, data = lung)
+lung_cox_age |> tidy()
+anova(lung_cox_age)
+```
+
+The estimate is positive, so the hazard increases with age, by a factor $e^{0.0187} \approx 1.019$ per year. The test is significant ($p \approx 0.04$).
+
+Since 11.5.1 shows that survival differs between men and women, we also test if survival depends on age given sex.
+
+```{r}
+lung_cox_sex <- coxph(Surv(time, status == "2") ~ sex, data = lung)
+lung_cox <- coxph(Surv(time, status == "2") ~ age + sex, data = lung)
+lung_cox |> tidy()
+anova(lung_cox_sex, lung_cox)
+```
+
+Given sex, the age effect is similar in size but no longer significant at the 5% level ($p \approx 0.06$). The evidence that survival depends on age is therefore weak. The effect of sex is clear: women have a lower hazard than men.
+
+### 11.5.3
+
+*Check if the Cox proportional hazards model fits the data.*
+
+We check the model `lung_cox` with both `age` and `sex` using the residuals from Section 11.5: a Cox-Snell residual plot, martingale residuals against the fitted values and against `age`, and the squared-martingale residuals for each sex (as in Example 11.12).
+
+```{r}
+#| fig-height: 8
+lung_cox_aug <- augment(lung_cox, data = lung) |>
+    mutate(
+        Lambda = (status == "2") - .resid,  # Cox-Snell residuals
+        v = .resid^2 - Lambda               # Squared-martingale residuals
+    )
+
+p1 <- augment(lung_cox, data = lung, type.predict = "expected") |>
+    survfit(Surv(.fitted, status == "2") ~ 1, data = _) |>
+    summary(data.frame = TRUE) |>
+    ggplot(aes(time, cumhaz)) +
+    geom_abline(slope = 1, color = "blue") +
+    geom_point() +
+    xlab("Cox-Snell residuals") +
+    ylab("Cumulative hazard")
+
+p2 <- ggplot(lung_cox_aug, aes(.fitted, .resid)) +
+    geom_point(alpha = 0.4) +
+    geom_smooth(method = "loess", formula = y ~ x) +
+    xlab("Fitted values") +
+    ylab("Martingale residuals")
+
+p3 <- ggplot(lung_cox_aug, aes(age, .resid)) +
+    geom_point(alpha = 0.4) +
+    geom_smooth(method = "loess", formula = y ~ x) +
+    xlab("Age") +
+    ylab("Martingale residuals")
+
+p4 <- ggplot(lung_cox_aug, aes(sex, v)) +
+    geom_point(position = position_jitter(width = 0.15, seed = 1), alpha = 0.4) +
+    geom_point(stat = "summary", fun = mean, color = "blue", size = 2.5) +
+    geom_errorbar(
+        stat = "summary",
+        fun.data = mean_se,
+        fun.args = list(mult = 1.96),
+        color = "blue",
+        width = 0.15
+    ) +
+    xlab("Sex") +
+    ylab("Squared-martingale residuals")
+
+gridExtra::grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+The Cox-Snell residuals follow the line with slope 1. The smoothed martingale residuals are close to 0 against both the fitted values and age, apart from the ends where there are few observations, so there is no sign that age should enter nonlinearly. The 95% confidence intervals for the means of the squared-martingale residuals include 0 for both sexes, so there is no evidence against the proportional hazards assumption for sex.
+
+As a formal check of the linear age effect, we test it against a natural cubic spline expansion of age.
+
+```{r}
+lung_cox_ns <- coxph(Surv(time, status == "2") ~ ns(age, df = 3) + sex, data = lung)
+anova(lung_cox, lung_cox_ns)
+```
+
+The nonlinear model is not significantly better. Overall, the Cox model with a linear age effect and sex fits the data reasonably well.
