@@ -139,3 +139,223 @@ anova(lung_cox, lung_cox_ns)
 ```
 
 The nonlinear model is not significantly better. Overall, the Cox model with a linear age effect and sex fits the data reasonably well.
+
+
+
+## Exercise 11.7
+
+We consider censored survival data $(T_i, \delta_i, X_i)$, $i = 1, \ldots, n$, with $X_i \in \mathbb{R}$ and relative risks $\psi_i = e^{\beta X_i}$. The survival times are ordered without ties, $T_1 < T_2 < \ldots < T_n$.
+
+### 11.7.1
+
+*Show that Cox's partial log-likelihood equals*
+$$
+\ell(\beta) = \sum_{i: \delta_i = 1} \beta X_i - \log \Big(\sum_{j \geq i} e^{\beta X_j} \Big),
+$$
+*and compute the first and second derivative of $\ell$ w.r.t. $\beta$.*
+
+By Definition 11.7, the partial likelihood is
+$$
+L_{\mathrm{par}} = \prod_{i: \delta_i = 1} \frac{\psi_i}{\Psi_i}, \qquad \Psi_i = \sum_{j: T_i \leq T_j} \psi_j.
+$$
+Since the survival times are ordered without ties, $\{j : T_i \leq T_j\} = \{j : j \geq i\}$. With $\psi_j = e^{\beta X_j}$ (11.17) we get
+$$
+\ell(\beta) = \log L_{\mathrm{par}} = \sum_{i: \delta_i = 1} \big( \log \psi_i - \log \Psi_i \big) = \sum_{i: \delta_i = 1} \beta X_i - \log \Big(\sum_{j \geq i} e^{\beta X_j} \Big).
+$$
+
+For the derivatives we introduce, for $k = 0, 1, 2$,
+$$
+\Psi_i^{(k)}(\beta) = \sum_{j \geq i} X_j^k e^{\beta X_j},
+$$
+so that $\Psi_i^{(0)} = \Psi_i$ and $\frac{\mathrm{d}}{\mathrm{d}\beta} \Psi_i^{(k)} = \Psi_i^{(k+1)}$. Then
+$$
+\ell'(\beta) = \sum_{i: \delta_i = 1} \left( X_i - \frac{\Psi_i^{(1)}(\beta)}{\Psi_i^{(0)}(\beta)} \right),
+$$
+and by the quotient rule
+$$
+\ell''(\beta) = - \sum_{i: \delta_i = 1} \left( \frac{\Psi_i^{(2)}(\beta)}{\Psi_i^{(0)}(\beta)} - \left(\frac{\Psi_i^{(1)}(\beta)}{\Psi_i^{(0)}(\beta)}\right)^2 \right).
+$$
+
+### 11.7.2
+
+*Show that $\ell$ is concave. Find a condition on the $X_i$-s that ensures that $\ell$ has a unique maximum.*
+
+For fixed $i$, the weights
+$$
+w_{ij}(\beta) = \frac{e^{\beta X_j}}{\Psi_i^{(0)}(\beta)}, \qquad j \geq i,
+$$
+are positive and sum to 1, so they define a probability distribution on the risk set $\{j : j \geq i\}$. With $\bar{X}_i(\beta) = \sum_{j \geq i} w_{ij}(\beta) X_j = \Psi_i^{(1)}(\beta) / \Psi_i^{(0)}(\beta)$,
+$$
+\frac{\Psi_i^{(2)}(\beta)}{\Psi_i^{(0)}(\beta)} - \left(\frac{\Psi_i^{(1)}(\beta)}{\Psi_i^{(0)}(\beta)}\right)^2 = \sum_{j \geq i} w_{ij}(\beta) \big(X_j - \bar{X}_i(\beta)\big)^2 \geq 0,
+$$
+which is the variance of the $X_j$-s in the risk set under the weights $w_{ij}(\beta)$. Hence $\ell''(\beta) \leq 0$ for all $\beta$, and $\ell$ is concave.
+
+For the condition, we rewrite the partial log-likelihood as
+$$
+\ell(\beta) = - \sum_{i: \delta_i = 1} \log \Big(\sum_{j \geq i} e^{\beta (X_j - X_i)} \Big),
+$$
+where every term is $\leq 0$, because the summand with $j = i$ equals 1. Then $\ell$ has a unique maximum if
+
+a) there is an uncensored $i$ and a $j > i$ with $X_j > X_i$, and
+b) there is an uncensored $k$ and an $l > k$ with $X_l < X_k$.
+
+Under a), the $i$-th term tends to $-\infty$ for $\beta \to \infty$, and since all other terms are $\leq 0$, $\ell(\beta) \to -\infty$ for $\beta \to \infty$. Likewise, b) gives $\ell(\beta) \to -\infty$ for $\beta \to -\infty$, so the continuous function $\ell$ attains a maximum. Moreover, a) implies that the $X_j$-s in the risk set of the uncensored $i$ are not all equal, so the variance above is strictly positive and $\ell''(\beta) < 0$. Thus $\ell$ is strictly concave and the maximizer is unique.
+
+The condition is also necessary: if a) fails, $X_i \geq \bar{X}_i(\beta)$ for all uncensored $i$, so $\ell'(\beta) \geq 0$ and $\ell$ is nondecreasing without a unique maximum (similarly if b) fails). In words, the $X$-values of those who die must not be separated from the $X$-values of those still at risk.
+
+### 11.7.3
+
+*Implement Newton's algorithm for computing $\hat{\beta}$. Apply the algorithm with start value $\beta_1 = 0$ to the simulated data set and investigate the values of $\beta_m$, $\ell(\beta_m)$, $\ell'(\beta_m)$ and $\ell''(\beta_m)$ in the iterations of the algorithm.*
+
+*Further: A naive implementation of the computation of e.g. $\ell$ scales like $n^2$. Make sure that your implementation scales like $n$.*
+
+We simulate $X_i \sim N(0, 1)$, take the baseline hazard to be $\lambda_0(t) = 1$, so that $T_i^* \sim \text{Exp}(e^{\beta X_i})$, and let the censoring times be uniform on $[0, 3]$. The data are sorted by the observed times. We simulate one data set with $\beta = 1$ and one with $\beta = 0$.
+
+```{r}
+sim_cox <- function(n, beta) {
+    x      <- rnorm(n)
+    T_star <- rexp(n, rate = exp(beta * x))  # baseline hazard lambda_0(t) = 1
+    C      <- runif(n, 0, 3)
+    dat    <- data.frame(
+        time   = pmin(T_star, C),
+        status = as.integer(T_star <= C),
+        x      = x
+    )
+    dat[order(dat$time), ]
+}
+
+set.seed(2026)
+dat1 <- sim_cox(n = 200, beta = 1)
+dat0 <- sim_cox(n = 200, beta = 0)
+```
+
+Since the data are sorted, $\Psi_i^{(k)} = \sum_{j \geq i} X_j^k e^{\beta X_j}$ for all $i$ is a reverse cumulative sum, which `rev(cumsum(rev(...)))` computes in $O(n)$ operations. Computing each of the $n$ sums from scratch would instead require $O(n^2)$ operations.
+
+```{r}
+# Partial log-likelihood and its first two derivatives.
+# Assumes the data are sorted by time with no ties.
+pl <- function(beta, x, status) {
+    w    <- exp(beta * x)
+    Psi0 <- rev(cumsum(rev(w)))
+    Psi1 <- rev(cumsum(rev(x * w)))
+    Psi2 <- rev(cumsum(rev(x^2 * w)))
+    d    <- status == 1
+    list(
+        l   = sum(beta * x[d] - log(Psi0[d])),
+        dl  = sum(x[d] - Psi1[d] / Psi0[d]),
+        d2l = -sum(Psi2[d] / Psi0[d] - (Psi1[d] / Psi0[d])^2)
+    )
+}
+
+newton_cox <- function(x, status, beta = 0, tol = 1e-10, maxit = 50) {
+    trace <- vector("list", maxit)
+    for (m in 1:maxit) {
+        v <- pl(beta, x, status)
+        trace[[m]] <- data.frame(m = m, beta = beta, l = v$l, dl = v$dl, d2l = v$d2l)
+        if (abs(v$dl) < tol) break
+        beta <- beta - v$dl / v$d2l  # Newton step
+    }
+    do.call(rbind, trace)
+}
+```
+
+```{r}
+newton_1 <- newton_cox(dat1$x, dat1$status)
+newton_1
+newton_0 <- newton_cox(dat0$x, dat0$status)
+newton_0
+```
+
+In both cases the algorithm converges in a few iterations. $\ell(\beta_m)$ increases, $\ell''(\beta_m)$ is negative throughout, and $\ell'(\beta_m)$ goes to 0 very fast: once close to $\hat{\beta}$, the number of correct digits roughly doubles in each iteration (quadratic convergence). For $\beta = 0$ the start value is already close to the estimate, and $\ell''$ is nearly constant, i.e., $\ell$ is close to quadratic.
+
+To check that the implementation scales like $n$, we time one evaluation of `pl()` for increasing $n$. The time should roughly double when $n$ doubles (which it does).
+
+```{r}
+sapply(c(1e5, 2e5, 4e5, 8e5), function(n) {
+    d <- sim_cox(n, beta = 1)
+    system.time(for (k in 1:10) pl(1, d$x, d$status))[["elapsed"]]
+})
+```
+
+### 11.7.4
+
+*Compute and plot an estimate of the baseline cumulative hazard function.*
+
+We use the Breslow estimator from Section 11.4.2,
+$$
+\hat{\Lambda}_0(t) = \sum_{i: T_i \leq t} \frac{\delta_i}{\sum_{j \geq i} e^{\hat{\beta} X_j}},
+$$
+which is a cumulative sum of the $\delta_i / \Psi_i^{(0)}(\hat{\beta})$-s, since the data are sorted. We use the data set simulated with $\beta = 1$.
+
+```{r}
+beta_hat <- tail(newton_1$beta, 1)
+breslow <- data.frame(
+    time   = dat1$time,
+    cumhaz = cumsum(dat1$status / rev(cumsum(rev(exp(beta_hat * dat1$x)))))
+)
+
+ggplot(breslow, aes(time, cumhaz)) +
+    geom_step() +
+    geom_abline(slope = 1, color = "blue", linetype = "dashed") +
+    xlab("Time") +
+    ylab("Baseline cumulative hazard")
+```
+
+The baseline corresponds to $X = 0$, and the dashed line is the true baseline cumulative hazard $\Lambda_0(t) = t$. The estimate follows it closely for small $t$ and deviates more for large $t$, where few individuals are at risk.
+
+### 11.7.5
+
+*Compute $\hat{\beta}$ using the `coxph()` function in R. Compute also a standard 95% confidence interval for $\beta$. Compare this interval with a (partial) likelihood interval based on $\ell$.*
+
+```{r}
+cox_fit <- coxph(Surv(time, status) ~ x, data = dat1)
+c(newton = beta_hat, coxph = unname(coef(cox_fit)))
+c(newton = pl(beta_hat, dat1$x, dat1$status)$l, coxph = cox_fit$loglik[2])
+```
+
+`coxph()` gives the same estimate and the same maximal partial log-likelihood as our implementation. Its baseline cumulative hazard (at $X = 0$) is also the same as our Breslow estimate:
+
+```{r}
+max(abs(basehaz(cox_fit, centered = FALSE)$hazard - breslow$cumhaz))
+```
+
+The standard 95% confidence interval is $\hat{\beta} \pm 1.96 \cdot \widehat{\mathrm{se}}$ with $\widehat{\mathrm{se}} = (-\ell''(\hat{\beta}))^{-1/2}$.
+
+```{r}
+confint(cox_fit)
+```
+
+The partial likelihood interval consists of the $\beta$-s with
+$$
+2 \big(\ell(\hat{\beta}) - \ell(\beta)\big) \leq q_{0.95}(\chi^2_1),
+$$
+and we find its endpoints with `uniroot()`.
+
+```{r}
+l_hat <- pl(beta_hat, dat1$x, dat1$status)$l
+se    <- sqrt(-1 / pl(beta_hat, dat1$x, dat1$status)$d2l)  # same as coxph's std. error
+comb  <- function(beta) {
+    2 * (l_hat - pl(beta, dat1$x, dat1$status)$l) - qchisq(0.95, df = 1)
+}
+c(
+    lower = uniroot(comb, c(beta_hat - 5 * se, beta_hat), tol = 1e-10)$root,
+    upper = uniroot(comb, c(beta_hat, beta_hat + 5 * se), tol = 1e-10)$root
+)
+```
+
+```{r}
+beta_grid <- seq(beta_hat - 4 * se, beta_hat + 4 * se, length.out = 200)
+data.frame(
+    beta      = beta_grid,
+    partial   = sapply(beta_grid, function(b) 2 * (l_hat - pl(b, dat1$x, dat1$status)$l)),
+    quadratic = (beta_grid - beta_hat)^2 / se^2
+) |>
+    tidyr::pivot_longer(-beta, names_to = "type") |>
+    ggplot(aes(beta, value, color = type)) +
+    geom_line() +
+    geom_hline(yintercept = qchisq(0.95, df = 1), linetype = "dashed") +
+    xlab(expression(beta)) +
+    ylab("")
+```
+
+The two intervals are almost identical, and both contain the true value $\beta = 1$. The partial likelihood interval is only slightly shifted to the right, because $\ell$ is very close to quadratic around $\hat{\beta}$.
