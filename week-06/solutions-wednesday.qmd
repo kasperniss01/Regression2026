@@ -173,35 +173,61 @@ $$
 $$
 and by the quotient rule
 $$
-\ell''(\beta) = - \sum_{i: \delta_i = 1} \left( \frac{\Psi_i^{(2)}(\beta)}{\Psi_i^{(0)}(\beta)} - \left(\frac{\Psi_i^{(1)}(\beta)}{\Psi_i^{(0)}(\beta)}\right)^2 \right).
+\ell''(\beta) = - \sum_{i: \delta_i = 1} \frac{\Psi_i^{(0)}(\beta) \Psi_i^{(2)}(\beta) - \big( \Psi_i^{(1)}(\beta) \big)^2}{\big( \Psi_i^{(0)}(\beta) \big)^2}
+= - \sum_{i: \delta_i = 1} \left( \frac{\Psi_i^{(2)}(\beta)}{\Psi_i^{(0)}(\beta)} - \left(\frac{\Psi_i^{(1)}(\beta)}{\Psi_i^{(0)}(\beta)}\right)^2 \right).
 $$
 
 ### 11.7.2
 
 *Show that $\ell$ is concave. Find a condition on the $X_i$-s that ensures that $\ell$ has a unique maximum.*
 
-For fixed $i$, the weights
-$$
-w_{ij}(\beta) = \frac{e^{\beta X_j}}{\Psi_i^{(0)}(\beta)}, \qquad j \geq i,
-$$
-are positive and sum to 1, so they define a probability distribution on the risk set $\{j : j \geq i\}$. With $\bar{X}_i(\beta) = \sum_{j \geq i} w_{ij}(\beta) X_j = \Psi_i^{(1)}(\beta) / \Psi_i^{(0)}(\beta)$,
-$$
-\frac{\Psi_i^{(2)}(\beta)}{\Psi_i^{(0)}(\beta)} - \left(\frac{\Psi_i^{(1)}(\beta)}{\Psi_i^{(0)}(\beta)}\right)^2 = \sum_{j \geq i} w_{ij}(\beta) \big(X_j - \bar{X}_i(\beta)\big)^2 \geq 0,
-$$
-which is the variance of the $X_j$-s in the risk set under the weights $w_{ij}(\beta)$. Hence $\ell''(\beta) \leq 0$ for all $\beta$, and $\ell$ is concave.
+**Concavity.** 
+The denominator of  $\ell''(\beta)$ is positive, and there is a minus sign in front of the sum. So $\ell''(\beta) \leq 0$ if every numerator is $\geq 0$, which is what we show now.
 
-For the condition, we rewrite the partial log-likelihood as
+Fix an uncensored $i$. We show that the numerator can be written as
 $$
-\ell(\beta) = - \sum_{i: \delta_i = 1} \log \Big(\sum_{j \geq i} e^{\beta (X_j - X_i)} \Big),
+\Psi_i^{(0)} \Psi_i^{(2)} - \big( \Psi_i^{(1)} \big)^2 = \frac{1}{2} \sum_{j \geq i} \sum_{k \geq i} e^{\beta X_j} e^{\beta X_k} \big( X_j - X_k \big)^2.
 $$
-where every term is $\leq 0$, because the summand with $j = i$ equals 1. Then $\ell$ has a unique maximum if
+To see this, start from the right-hand side and expand the square, $(X_j - X_k)^2 = X_j^2 - 2 X_j X_k + X_k^2$. Each of the resulting double sums is a product of two single sums, because a factor that only depends on $j$ can be taken outside the sum over $k$. This gives
+$$
+\begin{aligned}
+\frac{1}{2} \sum_{j \geq i} \sum_{k \geq i} e^{\beta X_j} e^{\beta X_k} \big( X_j - X_k \big)^2
+&= \frac{1}{2} \sum_{j \geq i} \sum_{k \geq i} e^{\beta X_j} e^{\beta X_k} X_j^2 - \sum_{j \geq i} \sum_{k \geq i} e^{\beta X_j} e^{\beta X_k} X_j X_k + \frac{1}{2} \sum_{j \geq i} \sum_{k \geq i} e^{\beta X_j} e^{\beta X_k} X_k^2 \\
+&= \frac{1}{2} \Big( \sum_{j \geq i} X_j^2 e^{\beta X_j} \Big) \Big( \sum_{k \geq i} e^{\beta X_k} \Big) - \Big( \sum_{j \geq i} X_j e^{\beta X_j} \Big) \Big( \sum_{k \geq i} X_k e^{\beta X_k} \Big) + \frac{1}{2} \Big( \sum_{j \geq i} e^{\beta X_j} \Big) \Big( \sum_{k \geq i} X_k^2 e^{\beta X_k} \Big) \\
+&= \frac{1}{2} \Psi_i^{(2)} \Psi_i^{(0)} - \big( \Psi_i^{(1)} \big)^2 + \frac{1}{2} \Psi_i^{(0)} \Psi_i^{(2)} \\
+&= \Psi_i^{(0)} \Psi_i^{(2)} - \big( \Psi_i^{(1)} \big)^2.
+\end{aligned}
+$$
+Hence
+$$
+\Psi_i^{(0)} \Psi_i^{(2)} - \big( \Psi_i^{(1)} \big)^2 = \frac{1}{2} \sum_{j \geq i} \sum_{k \geq i} \underbrace{e^{\beta X_j} e^{\beta X_k}}_{> 0} \underbrace{\big( X_j - X_k \big)^2}_{\geq 0} \geq 0,
+$$
+so $\ell''(\beta) \leq 0$ for all $\beta$, and $\ell$ is concave.
 
-a) there is an uncensored $i$ and a $j > i$ with $X_j > X_i$, and
-b) there is an uncensored $k$ and an $l > k$ with $X_l < X_k$.
+Moreover, suppose the risk set of some uncensored $i$ contains two individuals $j$ and $k$ with $X_j \neq X_k$. Then $(X_j - X_k)^2 > 0$, so that numerator is strictly positive and $\ell''(\beta) < 0$ for all $\beta$.
 
-Under a), the $i$-th term tends to $-\infty$ for $\beta \to \infty$, and since all other terms are $\leq 0$, $\ell(\beta) \to -\infty$ for $\beta \to \infty$. Likewise, b) gives $\ell(\beta) \to -\infty$ for $\beta \to -\infty$, so the continuous function $\ell$ attains a maximum. Moreover, a) implies that the $X_j$-s in the risk set of the uncensored $i$ are not all equal, so the variance above is strictly positive and $\ell''(\beta) < 0$. Thus $\ell$ is strictly concave and the maximizer is unique.
+**Unique maximum.** Consider the condition
 
-The condition is also necessary: if a) fails, $X_i \geq \bar{X}_i(\beta)$ for all uncensored $i$, so $\ell'(\beta) \geq 0$ and $\ell$ is nondecreasing without a unique maximum (similarly if b) fails). In words, the $X$-values of those who die must not be separated from the $X$-values of those still at risk.
+- **(A)** some individual dies while an individual with a larger $X$-value is still at risk, i.e., there is an uncensored $i$ and a $j > i$ with $X_j > X_i$, and
+- **(B)** some individual dies while an individual with a smaller $X$-value is still at risk, i.e., there is an uncensored $k$ and an $l > k$ with $X_l < X_k$.
+
+To see that it ensures a unique maximum, we rewrite each term of $\ell$ using $\beta X_i = \log e^{\beta X_i}$ and separate the summand with $j = i$, which equals $e^0 = 1$:
+$$
+\beta X_i - \log \Big( \sum_{j \geq i} e^{\beta X_j} \Big)
+= - \log \Big( e^{-\beta X_i} \sum_{j \geq i} e^{\beta X_j} \Big)
+= - \log \Big( \sum_{j \geq i} e^{\beta (X_j - X_i)} \Big)
+= - \log \Big( 1 + \sum_{j > i} e^{\beta (X_j - X_i)} \Big).
+$$
+Hence
+$$
+\ell(\beta) = - \sum_{i: \delta_i = 1} \log \Big( \underbrace{1 + \sum_{j > i} e^{\beta (X_j - X_i)}}_{\geq 1} \Big),
+$$
+and every term of $\ell$ is $\leq 0$.
+
+Existence: Under (A), the term for that $i$ contains $e^{\beta (X_j - X_i)}$ with $X_j - X_i > 0$, which tends to $\infty$ for $\beta \to \infty$. That term therefore tends to $-\infty$, and since all other terms are $\leq 0$, $\ell(\beta) \to -\infty$ for $\beta \to \infty$. In the same way, (B) gives $\ell(\beta) \to -\infty$ for $\beta \to -\infty$. A continuous function that tends to $-\infty$ in both directions attains a maximum.
+
+Uniqueness: Under (A), the risk set of that $i$ contains the two individuals $i$ and $j$ with $X_i \neq X_j$, so $\ell''(\beta) < 0$ for all $\beta$, as shown above. A strictly concave function has at most one maximizer.
+
 
 ### 11.7.3
 
