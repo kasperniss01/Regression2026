@@ -1,7 +1,689 @@
 ---
 title: "Week 7: Monday Solutions"
+author: "Kasper Niss"
 ---
 
-## Exercise 1
+```{r}
+#| message: false
+library(RwR)
+library(ggplot2)
+library(tibble)
+library(splines)
+library(dplyr)
+library(sandwich)
+library(lmtest)
+library(broom)
+library(survival)
 
-Add the exercise and its solution here.
+theme_set(theme_bw())
+```
+
+## Exercise 13.1
+The dataset `car` from the R package RwR contains the number of car insurance claims (`Claims`) and the number of policy holders (`Holders`) cross-tabulated according to the district (`District`), the size of the motor (`Motor`) and the age of the policy holder (`Age`). The table has 64 cells, and each row in the dataset corresponds to one cell. We model the claim rate per policy holder by the Poisson regression model with log link function, main effects of the three categorical variables, and $\log($`Holders`$)$ entering as an offset. The parameter of interest is the regression $\beta_D$ parameter for district D (major cities) relative to district A, and $\exp(\beta_D)$ is the corresponding claim rate ratio.
+
+#### 1. Fit the Poisson regression model and investigate if it fits the data, e.g., by comparing the deviance to the residual degrees of freedom and by plotting the Pearson residuals. Compute the standard 95% confidence interval and the likelihood interval for $\beta_D$, and transform both intervals into intervals for the rate ratio $\exp(\beta_D)$.
+
+First, we fit the model 
+
+```{r}
+pois_reg_model <- glm(
+    Claims ~ District + Motor + Age + offset(log(Holders)),
+    family = poisson(link = "log"),
+    data = car
+)
+
+summary(pois_reg_model)
+```
+
+Comparing the (residual) deviance to the residual degrees of freedom using their ratio,
+$$
+\frac{\operatorname{residual}}{\operatorname{residual \ df}},
+$$
+
+we find that
+
+```{r}
+D <- deviance(pois_reg_model)
+df <- df.residual(pois_reg_model)
+
+D / df
+```
+
+and it should be compared to 1, but there is no "clear" cutoff for which we can say that the model fits or not. 
+
+```{r}
+D <= qchisq(0.95, df)
+```
+
+If `TRUE`, informally, we can say that there is no evidence of lack of fit, but to investigate the mean-value structure and the variance, we have to look at a residual plot. 
+
+Hence, we plot the Pearson residuals
+
+```{r}
+df_diag <- data.frame(
+    residuals = residuals(pois_reg_model, type = "pearson"),
+    fitted = pois_reg_model$fitted.values
+)
+
+df_diag |> ggplot(aes(x = fitted, y = residuals)) + 
+    geom_point() + 
+    geom_smooth() + 
+    labs(
+        y = "Pearson residual",
+        x = "Fitted value"
+    )
+```
+
+The smoother stays fairly close to zero, without any real systematic trend. A few large fitted values contribute to the uncertainty in the right-hand side of the plot. The residual plot shows no obvious evidence of lack of fit. 
+
+We also simulate some residuals
+
+```{r}
+#| label: simulated-deviance-residuals
+#| fig-width: 10
+#| fig-height: 7
+#| message: false
+
+set.seed(131)
+simulated_claims <- simulate(pois_reg_model, nsim = 3)
+
+residual_panel <- function(model, panel_name) {
+    data.frame(
+        fitted = fitted(model),
+        residual = residuals(model, type = "pearson"),
+        panel = panel_name
+    )
+}
+
+residual_panels <- list(residual_panel(pois_reg_model, "Observed"))
+for (i in seq_len(3)) {
+    simulated_car <- car
+    simulated_car$Claims <- simulated_claims[[i]]
+    simulated_model <- update(pois_reg_model, data = simulated_car)
+    residual_panels[[i + 1]] <- residual_panel(
+        simulated_model, paste("Simulation", i)
+    )
+}
+
+comparison_residuals <- bind_rows(residual_panels)
+comparison_residuals$panel <- factor(
+    comparison_residuals$panel,
+    levels = c("Observed", paste("Simulation", 1:3))
+)
+
+residual_comparison_plot <- ggplot(
+    comparison_residuals, aes(x = fitted, y = residual)
+) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_point() +
+    geom_smooth(method = "loess", formula = y ~ x) +
+    facet_wrap(~ panel, ncol = 2) +
+    labs(x = "Fitted value", y = "Pearson residual") +
+    theme_minimal()
+
+residual_comparison_plot
+```
+
+Overall, the simulated residuals look like the observed, but there are minor deviations.
+
+We also estimate the dispersion
+
+```{r}
+phi_hat_full <- sum(residuals(pois_reg_model, type = "pearson")^2) / df.residual(pois_reg_model)
+
+phi_hat_full
+```
+
+Close to $1$, but not exactly. No indication of overdispersion.
+
+We compute the standard $95\%$ confidence interval and the likelihood confidence interval for $\beta_D$ using `confint.default()` and `confint()`, respectively. We also transform the interval using `exp`. 
+
+```{r}
+CIs_beta <- data.frame(
+    CI_sd = confint.default(pois_reg_model),
+    CI_ll = confint(pois_reg_model)
+)
+
+# grab only CI for beta_D
+CIs_beta_D <- CIs_beta["DistrictD", , drop = FALSE]
+
+```
+
+First for $\beta_D$
+
+```{r}
+CIs_beta_D |> round(3)
+```
+
+and then for $\exp(\beta_D)$
+
+```{r}
+exp(CIs_beta_D) |> round(3)
+```
+
+#### 2. Compute the sandwich estimator (13.12) of the asymptotic covariance matrix explicitly from the model matrix, the working weights and the working residuals as in Section 13.4.2. Do the computation using both representations, (13.13) and (13.14), of the weights $\tilde w_{ii}$, and compare the results to the result of `sandwich()`. Compute the robust $95\%$ confidence interval for $\beta_D$.
+
+The sandwich estimator of the asymptotic covariance matrix is 
+$$
+\tilde \Sigma = (\mathbf{X}^\top \hat{\mathbf{W}} \mathbf{X})^{-1}(\mathbf{X}^\top \tilde{\mathbf{W}}\mathbf{X}) (\mathbf{X}^\top \hat{\mathbf{W}}\mathbf{X})^{-1}.
+$$
+
+The matrix $\hat{\mathbf{W}}$ is a diagonal matrix and the diagonal is given by
+$$
+\hat w_{ii} = \frac{(\hat\mu_i')^2}{\mathcal{V}(\hat\mu_i)},
+$$
+
+and $\tilde{\mathbf{W}}$ is also a diagonal matrix with diagonal given by one of the two representations, using either (13.13) or (13.13), 
+$$
+\tilde w_{ii} \overset{(13.13)}{=}\hat w_{ii} \frac{(Y_i - \hat\mu_i)^2}{\mathcal{V}(\hat\mu_i)}, \quad \tilde w_{ii} \overset{(13.14)}{=}\left(\hat w_{ii} \frac{Y_i - \hat\mu_i}{\hat\mu_i'}\right)^2. 
+$$
+
+Both can be found from the model fit, and so can $\hat w_{ii}$. We first calculate the the product $\mathbf{X}^\top \hat{\mathbf{W}} \mathbf{X}$ as $\mathbf{J}$ (see also Section 13.4.2)
+
+```{r}
+w_hat <- weights(pois_reg_model, type = "working")
+X <- model.matrix(pois_reg_model)
+J <- crossprod(X, w_hat * X)
+```
+
+Finally, we have to calculate $\tilde{\mathbf{W}}$, and we use the formulas above
+
+```{r}
+# Equation (13.13): weight times squared Pearson residual
+w_tilde_13 <- w_hat * residuals(pois_reg_model, type = "pearson")^2
+
+# Equation (13.14): square of weight times working residual
+w_tilde_14 <- (w_hat * residuals(pois_reg_model, type = "working"))^2
+```
+
+The sandwich estimators are then
+
+```{r}
+Sigma_tilde_13 <- solve(J, crossprod(X, w_tilde_13 * X)) %*% solve(J)
+Sigma_tilde_14 <- solve(J, crossprod(X, w_tilde_14 * X)) %*% solve(J)
+```
+
+We compare them to each other
+
+```{r}
+range(Sigma_tilde_13 - Sigma_tilde_14)
+```
+
+and also to the `sandwich()` function from the `sandwich` package
+
+```{r}
+(sandwich::sandwich(pois_reg_model) - Sigma_tilde_13) |> range()
+```
+
+They are equal (up to numerics). Finally we compute the robust $95\%$ confidence interval for $\beta_D$ using the robust standard error found from the sandwich estimator 
+
+```{r}
+robust_se <- sqrt(Sigma_tilde_13["DistrictD", "DistrictD"])
+
+robust_ci <- coef(pois_reg_model)["DistrictD"] +
+    c(-1, 1) * qnorm(0.975) * robust_se
+
+robust_ci
+```
+
+and if we compare it to the Wald and likelihood based interval, 
+
+```{r}
+CIs_beta_D |>
+    mutate(
+        robust_lower = robust_ci[1],
+        robust_upper = robust_ci[2]
+    ) |>
+    round(3)
+```
+
+
+
+```{r}
+#| label: beta-d-interval-comparison
+#| fig-width: 7
+#| fig-height: 5
+
+beta_D_intervals <- data.frame(
+    method = factor(
+        c("Wald", "Profile likelihood", "Robust (sandwich)"),
+        levels = c("Wald", "Profile likelihood", "Robust (sandwich)")
+    ),
+    estimate = unname(coef(pois_reg_model)["DistrictD"]),
+    lower = c(CIs_beta_D[[1]], CIs_beta_D[[3]], robust_ci[1]),
+    upper = c(CIs_beta_D[[2]], CIs_beta_D[[4]], robust_ci[2])
+)
+
+beta_D_interval_plot <- ggplot(
+    beta_D_intervals, aes(x = method, y = estimate, colour = method)
+) +
+    geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.15,
+                  linewidth = 0.8) +
+    geom_point(size = 3) +
+    labs(x = "Method", y = expression(beta[D]),
+         title = "95% confidence intervals for district D") +
+    theme_minimal(base_size = 12) +
+    theme(legend.position = "none")
+
+beta_D_interval_plot
+```
+
+The robust interval is a narrower. 
+
+#### 3. Compare the model-based and the robust standard errors for all the regression parameters. Even though the Poisson model appears to fit the data well, the two sets of standard errors differ considerably. To investigate which of the two interval constructions for $\beta_D$ has an actual coverage closest to the nominal $95\%$, simulate 1000 new datasets from the fitted Poisson model (conditionally on the predictors and the number of policy holders), refit the model to each simulated dataset, and compute both intervals. Estimate the actual coverage of each of the two interval constructions and explain the result.
+
+*Hint: The sandwich estimator is itself an estimator with sampling variability. How many observations are used to estimate the $10 \times 10$ matrix $C_1$?*
+
+First we compare the model-based and the robust standard errors. The standard errors from the model-based
+
+
+Extract the model-based standard errors directly from the summary's coefficient table. Equivalently, use `sqrt(diag(vcov(pois_reg_model)))`. The same diagonal-and-square-root calculation applies to the sandwich covariance matrix.
+
+```{r}
+model_se <- coef(summary(pois_reg_model))[, "Std. Error"]
+robust_se_all <- sqrt(diag(sandwich::sandwich(pois_reg_model)))
+
+SE_comparison <- data.frame(
+    parameter = names(model_se),
+    model_based = unname(model_se),
+    robust = unname(robust_se_all[names(model_se)])
+) |>
+    mutate(robust_to_model_ratio = robust / model_based)
+
+SE_comparison |>
+    mutate(across(where(is.numeric), ~ round(.x, 4)))
+```
+
+A ratio below 1 means that the robust standard error is smaller; a ratio above 1 means it is larger. Robust standard errors are not necessarily larger than model-based standard errors. We also see that it differs between the parameters; for some the model-based standard errors are smaller and for some they are larger. 
+
+Next we simulate 1000 new datasets from the model to compare the actual coverage rate of the confidence intervals.
+
+```{r}
+#| message: false
+set.seed(1313)
+B <- 1000
+beta_D_truth <- unname(coef(pois_reg_model)["DistrictD"])
+z <- qnorm(0.975)
+
+# Each row stores one simulation; each method has two endpoint columns.
+CIs <- matrix(
+  NA_real_,
+  nrow = B,
+  ncol = 6,
+  dimnames = list(
+    NULL,
+    c(
+      "wald_lower",
+      "wald_upper",
+      "likelihood_lower",
+      "likelihood_upper",
+      "robust_lower",
+      "robust_upper"
+    )
+  )
+)
+
+for (b in seq_len(B)) {
+  simulated_data <- car # copy to simulated data
+  simulated_data$Claims <- simulate(pois_reg_model)[[1]] # update claims with simulated response
+  fit <- update(pois_reg_model, data = simulated_data) # refit the model
+
+  beta_D_b <- unname(coef(fit)["DistrictD"]) # beta_D from fit
+
+  wald_ci_b <- confint.default(fit, parm = "DistrictD", level = 0.95) # std 95% CI
+  likelihood_ci_b <- confint(fit, parm = "DistrictD", level = 0.95) # ll 95% CI
+
+  Sigma_tilde_b <- sandwich::sandwich(fit) # robust covariance estimate
+  robust_se_b <- sqrt(Sigma_tilde_b["DistrictD", "DistrictD"]) # robust se for beta_D
+  robust_ci_b <- beta_D_b + c(-1, 1) * z * robust_se_b # 95% robust CI
+
+  CIs[b, ] <- c(wald_ci_b, likelihood_ci_b, robust_ci_b)
+}
+
+CIs <- as.data.frame(CIs)
+
+covered <- with(
+  CIs,
+  cbind(
+    Wald = wald_lower <= beta_D_truth & beta_D_truth <= wald_upper,
+    Likelihood = likelihood_lower <= beta_D_truth &
+      beta_D_truth <= likelihood_upper,
+    Robust = robust_lower <= beta_D_truth & beta_D_truth <= robust_upper
+  )
+)
+
+coverage <- colMeans(covered)
+data.frame(
+  method = names(coverage),
+  coverage = unname(coverage),
+  Monte_Carlo_SE = sqrt(unname(coverage) * (1 - unname(coverage)) / B)
+)
+```
+
+We see that the Wald and the likelihood based confidence interval both have actual coverage close to $95\%$ whereas the robust intervals do not, they only have actual coverage around $87.5\%$. 
+
+Recall that we have to estimate $C_1$ which is a $10 \times 10$ matrix. Because it is a covariance matrix, there are 55 distinct entries we have to estimate. In total, we have $`{r} nrow(car)`$ observations, so we estimate $55$ distrinct entries using only $64$ observations. This can make the sandwich standard errors variable poorly estimated in a finite (small) sample. 
+
+This points towards the robust standard errors being too small, and the lower coverage is also partially explained by the more narrow robust confidence interval compared to the model-based. 
+
+
+#### 4. Refit the model without Age. Show that this model is overdispersed, and compute the standard, the quasi-Poisson and the robust 95% confidence intervals for $\beta_D$ in this model. Compare the intervals to each other and to those obtained for the full model.
+
+First we fit the model without `Age`
+```{r}
+fit_m_age <- glm(
+    Claims ~ District + Motor + offset(log(Holders)),
+    data = car,
+    family = poisson(link = "log")
+)
+```
+
+We estimate the dispersion parameter similar to be before and get
+```{r}
+m_age_diag <- augment(
+    fit_m_age,
+    type.residuals = "pearson"
+)
+
+# Estimated dispersion parameter
+phi_hat_no_age <- sum(m_age_diag$.resid^2) / df.residual(fit_m_age)
+phi_hat_no_age
+```
+
+The estimate is $`{r} phi_hat_no_age |> round(5)`$ which indicates some overdispersion, since in a Poisson glm, it is fixed and equal to 1. This could also be due to a, now, misspecified mean structure, after removing `Age`. 
+
+To overcome this, we fit the quasi-Poisson model
+
+```{r}
+fit_quasi <- glm(
+    Claims ~ District + Motor + offset(log(Holders)),
+    data = car,
+    family = quasipoisson(link = "log")
+)
+```
+
+
+We create confidence intervals for $\beta_D$ using the overdispersed Poisson model without age, both Robust and standard Wald, and using the quasi-Poisson model. We compare them to the confidence intervals using the full model. 
+
+```{r}
+#| label: compare-beta-d-models
+#| message: false
+
+beta_D_wald_row <- function(fit, model_name, method_name,
+                            covariance = vcov(fit)) {
+    estimate <- unname(coef(fit)["DistrictD"])
+    se <- sqrt(covariance["DistrictD", "DistrictD"])
+    data.frame(
+        model = model_name,
+        interval_method = method_name,
+        estimate = estimate,
+        lower = estimate - qnorm(0.975) * se,
+        upper = estimate + qnorm(0.975) * se
+    )
+}
+
+full_profile_ci <- suppressMessages(
+    confint(pois_reg_model, parm = "DistrictD", level = 0.95)
+)
+
+beta_D_CI_comparison <- bind_rows(
+    beta_D_wald_row(fit_m_age, "Without Age", "Poisson Wald"),
+    beta_D_wald_row(fit_quasi, "Without Age", "Quasi-Poisson Wald"),
+    beta_D_wald_row(fit_m_age, "Without Age", "Robust Wald",
+                    sandwich::sandwich(fit_m_age)),
+    beta_D_wald_row(pois_reg_model, "Full (with Age)", "Poisson Wald"),
+    data.frame(
+        model = "Full (with Age)",
+        interval_method = "Profile likelihood",
+        estimate = unname(coef(pois_reg_model)["DistrictD"]),
+        lower = unname(full_profile_ci[1]),
+        upper = unname(full_profile_ci[2])
+    ),
+    beta_D_wald_row(pois_reg_model, "Full (with Age)", "Robust Wald",
+                    sandwich::sandwich(pois_reg_model))
+)
+
+# Round only the displayed copy, retaining full precision in the dataframe.
+beta_D_CI_comparison |>
+    mutate(across(where(is.numeric), ~ round(.x, 4)))
+```
+
+The Poisson Wald for the model without `Age` are shifted to the left compared to the Poisson Wald for the full model. The Quasi-Poisson is the widest of all, having the same lower endpoint as the model without `Age` but the upper endpoint being larger than any of the other. The robust Wald for the model without `Age` is wider than the one for the full model. 
+
+#### 5. The robust interval in question 4 accounts for the misspecification of the variance, but Age has been left out of the mean value model. Discuss, in the light of the discussion following Example 13.5, which parameter the estimator of $\beta_D$ targets in the model without `Age`, and whether the robust interval is a useful interval estimate of the effect of district D. The sandwich estimator was motivated in Section 13.2.3 under assumption A6. Discuss if this assumption is reasonable for the cells of a cross-tabulation such as the `car` data. Which of the intervals computed in this exercise would you report?
+
+That is a lot... 
+
+## Exercise 13.2 (without question 7)
+
+The Gompertz distribution on $[0, \infty)$ has survival function 
+$$
+S(t) = \exp(-\eta(e^{\gamma t} - 1)), \quad t\geq0,
+$$
+
+for parameters $\eta,\gamma >0$. We assume in the following that
+$$
+(T_1, \delta_1), \dots, (T_n, \delta_n)
+$$
+
+are $n$ censored i.i.d. survival times following a Gompertz distribution. Introduce also the summary statistics
+$$
+t = \sum_{i = 1}^{n} T_i, \quad s = \sum_{i = 1}^{n}\delta_i T_i, \quad \textrm{and} \quad n_u = \sum_{i = 1}^{n}\delta_i.
+$$
+ 
+The values of these summary statistics for a dataset are given in the following table together with some additional statistics.
+
+| **Statistic:** | $n$ | $n_u$ | $t$ | $s$ | $\hat\gamma$ | $\sum_{i=1}^{n} e^{\hat\gamma T_i}$ | $\sum_{i=1}^{n} T_i^2 e^{\hat\gamma T_i}$ |
+|:---|:---|:---|:---|:---|:---|:---|:---|
+| **Value:** | 50 | 32 | 1637 | 1384 | 0.09390 | 3396 | 9949983 |
+
+#### 1. Compute the hazard function for the Gompertz distribution. Show that the log-likelihood is
+$$
+\ell(\eta, \gamma) = \log(\eta \, \gamma)n_u + \gamma s + \eta\left(n - \sum_{i = 1}^{n} e^{\gamma T_i} \right).
+$$
+
+First, we find the cumulative hazard. Recall, that
+$$
+\Lambda(t) = -\log(S(t)) = \eta(e^{\gamma t} - 1),
+$$
+
+such that the hazard function is
+$$
+\lambda(t) = \Lambda'(t) = \eta \gamma e^{\gamma t}. 
+$$
+
+Using Proposition 11.1, we can find the likelihood,
+$$
+L(\eta, \gamma) = \prod_{i = 1}^{n} \lambda_i(T_i)^{\delta_i} e^{-\Lambda_i(T_i)} = \prod_{i = 1}^{n} \left(\eta \gamma e^{\gamma T_i}\right)^{\delta_i} \exp(-\eta(e^{\gamma T_i} - 1)).
+$$
+
+It follows that the log-likelihood is
+\begin{align*}
+\ell(\eta, \gamma) &= \log L(\eta, \gamma) = \sum_{i = 1}^{n} \delta_i \log(\eta \gamma e^{\gamma T_i}) - \eta(e^{\gamma T_i} - 1) \\
+&= \sum_{i = 1}^{n} \delta_i \log(\eta \gamma) + \delta_i \gamma T_i - \eta(e^{\gamma T_i} - 1)\\ 
+&= n_u\log(\eta \gamma) + \gamma s + \eta \left(n - \sum_{i = 1}^n e^{\gamma T_i} \right)
+\end{align*}
+as desired.
+
+
+#### 2. Show that the MLE (provided it exists) satisfies the equations
+$$
+\sum_{i = 1}^{n} e^{\gamma T_i} = n + \frac{n_u}{\eta} \quad \textrm{and} \quad \sum_{i = 1}^{n} T_i e^{\gamma T_i} = \frac{s}{\eta} + \frac{n_u}{\eta \gamma}.
+$$
+
+If the MLE exists (in the open set $(0, \infty)^2$) then it must satisfy $D \ell(\eta, \gamma) = 0$. Taking the derivative of the log-likelihood using the expression found in question 1, we find
+$$
+D\ell(\eta, \gamma) = \left(\frac{n_u}{\eta} + n - \sum_{i = 1}^n e^{\gamma T_i}, \frac{n_u}{\gamma} + s - \eta\sum_{i = 1}^n T_i e^{\gamma T_i}\right).
+$$
+
+Solving the score equation thus yields the two formulas. 
+
+#### 3. With $\mathcal{J}^{\operatorname{obs}}$ denoting the observed Fisher information show that
+$$
+((\mathcal{J}^{\operatorname{obs}})^{-1})_{22} = \left(\frac{n_u}{\hat\gamma^2} + \hat\eta \sum_{i = 1}^n T_i^2 e^{\hat\gamma T_i} - \frac{1}{n_u}\left(s + \frac{n_u}{\hat\gamma}\right)^2\right)^{-1}.
+$$
+
+The observed Fisher information is found by plugging in the MLE of $\eta, \gamma$ in the expression of the negative Hessian of the log-likelihood. 
+
+The negative Hessian of the log-likelihood is
+$$
+-D^2\ell(\eta, \gamma) = \begin{pmatrix} \frac{n_u}{\eta^2} & \sum_{i = 1}^n T_i e^{\gamma T_i} \\ \sum_{i = 1}^n T_i e^{\gamma T_i} & \frac{n_u}{\gamma^2} + \hat\eta\sum_{i = 1}^n T_i^2 e^{\gamma T_i}\end{pmatrix}.
+$$
+
+Thus, by plugging in the MLE (if it exists), $(\hat\eta, \hat\gamma)$, we find that the observed Fisher information is
+\begin{align*}
+\mathcal{J}^{\operatorname{obs}} = -D^2\ell(\hat\eta, \hat\gamma) &= \begin{pmatrix} \frac{n_u}{\hat\eta^2} & \sum_{i = 1}^n T_i e^{\hat\gamma T_i} \\ \sum_{i = 1}^n T_i e^{\hat\gamma T_i} & \frac{n_u}{\hat\gamma^2} + \hat\eta \sum_{i = 1}^n T_i^2 e^{\hat\gamma T_i}\end{pmatrix}\\ &= \begin{pmatrix} \frac{n_u}{\hat\eta^2} & \frac{s}{\hat\eta} + \frac{n_u}{\hat\eta\hat\gamma} \\ \frac{s}{\hat\eta} + \frac{n_u}{\hat\eta\hat\gamma} & \frac{n_u}{\hat\gamma^2} + \hat\eta \sum_{i = 1}^n T_i^2e^{\hat\gamma T_i}\end{pmatrix},
+\end{align*}
+where we use the result from question 2. 
+
+To find the 2,2 entry in the inverse, we use the following formula for inversion of a $2\times 2$ matrix
+$$
+\begin{pmatrix} A & B \\ C & D \end{pmatrix}^{-1} = \frac{1}{AD - BC}\begin{pmatrix} D & -B \\ -C & A \end{pmatrix}
+$$
+
+such that the 2,2 entry in the inverse is given as 
+$$
+\left(\begin{pmatrix} A & B \\ C & D \end{pmatrix}^{-1} \right)_{22} = \frac{A}{AD - BC} = \left(\frac{AD - BC}{A}\right)^{-1} = \left(D - \frac{BC}{A}\right)^{-1} = \left(D - \frac{B^2}{A}\right)^{-1}.
+$$
+
+Applying this we find that
+$$
+\begin{aligned}
+((\mathcal{J}^{\operatorname{obs}})^{-1})_{22} &= \left(\frac{n_u}{\hat\gamma^2} + \hat\eta \sum_{i = 1}^{n} T_i^2 e^{\hat\gamma T_i} - \frac{\left(\frac{s}{\hat\eta} + \frac{n_u}{\hat\eta\hat\gamma}\right)^2}{\frac{n_u}{\hat\eta^2}}\right)^{-1} \\ 
+&= \left(\frac{n_u}{\hat\gamma^2} + \hat\eta \sum_{i = 1}^{n} T_i^2 e^{\hat\gamma T_i} - \frac{\frac{1}{\hat\eta^2}\left(s + \frac{n_u}{\hat\gamma}\right)^2}{\frac{n_u}{\hat\eta^2}}\right)^{-1} \\
+&= \left(\frac{n_u}{\hat\gamma^2} + \hat\eta \sum_{i = 1}^{n} T_i^2 e^{\hat\gamma T_i} - \frac{1}{n_u}\left(s + \frac{n_u}{\hat\gamma}\right)^2\right)^{-1}
+\end{aligned} 
+$$
+
+as desired. 
+
+#### 4. Using the summary statistics from the table above show that $\hat\eta = 0.009564$ and compute an approximate likelihood interval for $\hat\gamma$.
+
+From Question 2 it follows that the MLE of $\eta$, $\hat\eta$ is given as 
+$$
+\hat\eta = \frac{n_u}{\sum_{i = 1}^{n} e^{\gamma T_i} - n}.
+$$
+
+If we insert the values given in the exercise, we find
+
+```{r}
+n <- 50
+n_u <- 32
+t <- 1637
+s <- 1384
+hat_gamma <- 0.09390
+s_exp <- 3396
+s_T2_exp <- 9949983
+
+hat_eta <- n_u / (s_exp - n)
+hat_eta
+```
+
+Because $((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}$ is positive definite Lemma 13.1 gives the quadratic approximation of the likelihood as
+$$
+h(\gamma) = \frac{(\hat\gamma - \gamma)^2}{((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}},
+$$
+
+see also (13.7). This is $Z^2$ for the $Z$ statistic, so we can use the cut-offs from a $\chi^2_1$ distribution and obtain an approximate likelihood interval for $\gamma$ as 
+$$
+\hat\gamma \pm z_{0.975}\widehat{\operatorname{SE}}(\gamma),
+$$
+
+where $z_{0.975}$ is the $97.5\%$ quantile in the standard normal distribution and $\widehat{\operatorname{SE}}(\gamma) = \sqrt{((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}}$. This is calculated as
+
+```{r}
+J_inv_22 <- (n_u / hat_gamma^2 + hat_eta * s_T2_exp - 1 / n_u * (s + n_u / hat_gamma)^2)^{-1}
+SE_hat_gamma <- sqrt(J_inv_22)
+SE_hat_gamma
+```
+
+and we find the interval to be
+
+```{r}
+hat_gamma + c(-1, 1) * qnorm(0.975) * SE_hat_gamma
+```
+
+From hereon it is assumed that the censoring distribution is exponential with rate parameter $\lambda$, and that the censoring variables are i.i.d.
+
+#### 5. Argue why $\hat\lambda = (n - n_u) / t$ is a sensible estimator of $\lambda$.
+
+We will use Example 11.4 for the exponential distribution. In our setup, $\delta_i = 1$ means that we observe the actual surivival time, and $\delta_i = 0$ means that censoring occurs first, that is we observe $C_i$. 
+
+For estimation of $\lambda$ we are interested in the censoring distribution, so we consider the data from that perspective. The observed event indicator for the censoring-time distribution is thus $1 - \delta_i$ (instead of $\delta_i$ for the survival time), so that an estimator of $\lambda$ is given as 
+$$
+\hat\lambda = \frac{\sum_{i = 1}^n (1 - \delta_i)}{\sum_{i = 1}^n T_i}
+ = \frac{n - \sum_{i = 1}^n \delta_i}{t} = \frac{n - n_u}{t}.
+$$
+
+The estimate of $\lambda$ is $\hat\lambda = `{r} lambda_hat <- (n - n_u) / t`$.
+
+```{r}
+#| echo: false
+lambda_hat <- (n - n_u) / t
+```
+
+#### 6. Simulate a new dataset, $(\tilde T_1, \tilde \delta_1), \dots, (\tilde T_n, \tilde \delta_n)$, using the estimated parameters $\hat\eta$ and $\hat\gamma$ for the Gompertz survival distribution and $\hat\lambda$ for the exponential censoring distribution. Compute and plot the Kaplan-Meier estimator of the survival function for the simulated data and compare it to the theoretical survival function.
+
+First, we have to simulate the actual survival times from a Gompertz distribution. There is no default simulation function in `R` to do this, so we use the general result that if $X$ has distribution function $F$ then $F(X)\sim \operatorname{unif}(0,1)$. In fact, we can also use the survival function $S = 1 - F$ because $S(X) = 1 - F(X) \sim \operatorname{unif}(0,1)$ since $1 - U$ is uniformly distributed on $(0,1)$ whenever $U$ is. 
+
+Since we have the survival function $S(t) = \exp(-\eta(e^{\gamma t} - 1))$ given in the exercise we analytically find the inverse and use that for simulation. 
+
+```{r}
+S <- function(t, eta = hat_eta, gamma = hat_gamma) exp(-eta * (exp(gamma * t) - 1))
+
+S_inv <- function(u, eta = hat_eta, gamma = hat_gamma) log1p(-log(u) / eta) / gamma
+```
+
+
+```{r}
+rgompertz <- function(n, eta = hat_eta, gamma = hat_gamma) {
+    U <- runif(n)
+
+    S_inv(U, eta = eta, gamma = gamma)
+}
+```
+
+We can then generate the actual survival times using $\hat\eta$ and $\hat\gamma$ and the censoring variables using $\hat\lambda$
+
+```{r}
+T_star <- rgompertz(n)
+C <- rexp(n, lambda_hat)
+```
+
+and then we can simulate the observed data
+
+```{r}
+sim_data <- data.frame(
+    T = pmin(T_star, C),
+    status = as.integer(T_star <= C)
+)
+
+sim_data |> head()
+```
+
+We can then compute the Kaplan-Meier estimate of the survival function
+
+```{r}
+KM <- survfit(
+    Surv(T, status == 1) ~ 1, 
+    data = sim_data
+)
+```
+
+and compare with the true survival function from the Gompertz distribution
+
+```{r}
+summary(KM, data.frame = TRUE) |>
+    ggplot(aes(time, surv)) +
+    geom_step(aes(colour = "Kaplan-Meier")) +
+    stat_function(
+        fun = S,
+        aes(colour = "Gompertz")
+    ) +
+    scale_colour_manual(values = c(
+        "Kaplan-Meier" = "#0072B2",
+        "Gompertz" = "#D55E00"
+    )) +
+    coord_cartesian(ylim = c(0, 1)) +
+    labs(x = "Time", y = "Survival probability", colour = NULL)
+```
