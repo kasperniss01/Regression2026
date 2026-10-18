@@ -50,6 +50,13 @@ and place the labeled suggestion immediately after it. If Codex previously
 replaced user-authored content and the original is recoverable, restore the
 original before adding any new labeled suggestion.
 
+## Placement of corrections
+
+Place each explanation or code correction immediately after the specific passage
+or code chunk it concerns, before later code that depends on it. Do not collect
+corrections in a replacement solution at the end of an exercise or document.
+Keep changes local and preserve the user's existing structure.
+
 ## Course source of truth
 
 For statistical definitions, assumptions, notation, and course-specific

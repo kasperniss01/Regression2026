@@ -452,9 +452,13 @@ The Poisson Wald for the model without `Age` are shifted to the left compared to
 
 #### 5. The robust interval in question 4 accounts for the misspecification of the variance, but Age has been left out of the mean value model. Discuss, in the light of the discussion following Example 13.5, which parameter the estimator of $\beta_D$ targets in the model without `Age`, and whether the robust interval is a useful interval estimate of the effect of district D. The sandwich estimator was motivated in Section 13.2.3 under assumption A6. Discuss if this assumption is reasonable for the cells of a cross-tabulation such as the `car` data. Which of the intervals computed in this exercise would you report?
 
-That is a lot... 
+In the model without Age, $\beta_D$ compares district D with district A, adjusting for Motor but not Age. It therefore need not represent the same parameter as in the full model. As discussed after Example 13.5, when the mean model is wrong, the target parameter can be difficult to interpret. Robust standard errors account for variance misspecification, but do not fix the missing Age effect. The book therefore primarily recommends robust intervals when GA1 holds but GA2 may fail.
 
-## Exercise 13.2 (without question 7)
+A6 assumes that the pairs $(X_i,Y_i)$ are i.i.d. Here the rows are predefined groups, one for each District–Motor–Age combination, rather than independent random draws from a common distribution of predictor-response pairs. Each row has its own fixed predictor combination and number of holders, so the pairs are not identically distributed under this table setup. The cell counts may still be independent, but that alone does not satisfy A6. 
+
+Finally, I would report the confidence intervals based on the likelihood using the full model. There are no clear signs of model misspecification and the actual coverage is close the the nominal. 
+
+## Exercise 13.2 (and question 7)
 
 The Gompertz distribution on $[0, \infty)$ has survival function 
 $$
@@ -654,7 +658,7 @@ and then we can simulate the observed data
 
 ```{r}
 sim_data <- data.frame(
-    T = pmin(T_star, C),
+    time = pmin(T_star, C),
     status = as.integer(T_star <= C)
 )
 
@@ -665,7 +669,7 @@ We can then compute the Kaplan-Meier estimate of the survival function
 
 ```{r}
 KM <- survfit(
-    Surv(T, status == 1) ~ 1, 
+    Surv(time, status == 1) ~ 1, 
     data = sim_data
 )
 ```
@@ -681,9 +685,215 @@ summary(KM, data.frame = TRUE) |>
         aes(colour = "Gompertz")
     ) +
     scale_colour_manual(values = c(
-        "Kaplan-Meier" = "#0072B2",
-        "Gompertz" = "#D55E00"
+        "Kaplan-Meier" = "blue",
+        "Gompertz" = "red"
     )) +
     coord_cartesian(ylim = c(0, 1)) +
     labs(x = "Time", y = "Survival probability", colour = NULL)
 ```
+
+The implementation of the simulation is the first step in the construction of a parametric bootstrap algorithm, which, for instance, can be used to calibrate the likelihood interval.
+
+#### 7. Implement a parametric bootstrap algorithm (remember parameter constraints) to obtain a bootstrap approximation of the distribution of the statistic
+$$
+\frac{(\hat\gamma - \gamma)^2}{((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}}.
+$$
+
+Compare it with a $\chi^2_1$-distribution.
+
+*Hint: The implementation will require the numerical solution of the score equation for the computation of the MLE. You will only need to numerically solve a univariate equation, and you can implement your own Newton algorithm. You can also use the R function `uniroot()`. Alternatively, you can use the R function `optim()` for direct minimization of the negative log-likelihood.* 
+
+To implement a parametric bootstrap procedure of the quantity
+$$
+\frac{(\hat\gamma - \gamma)^2}{((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}},
+$$
+
+we need to be able to 1) simulate datasets; 2) obtain the maximum likelihood estimate of $\gamma$, $\hat\gamma$; 3) calculate $((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}$. 
+
+1) is (almost) done by Question 6 where we simulate a new dataset, we just have to make this into a function.
+
+```{r}
+sim_data <- function(n = 50, pars = NULL) {
+  # update the pars so that they take eta, gamma and lambda
+  T_star <- rgompertz(n)
+  C <- rexp(n, lambda_hat)
+  data <- data.frame(
+    time = pmin(T_star, C),
+    status = as.integer(T_star <= C)
+  )
+
+  data
+}
+```
+
+For 2), we implement the (negative) log-likelihood found in Question 1
+
+```{r}
+ll <- function(data, par) {
+    # data consists of delta and T
+    # par is (eta, gamma)
+
+    delta <- data$status
+    time <- data$time
+
+    eta <- par[1]
+    gamma <- par[2]
+
+    n <- nrow(data)
+    n_u <- sum(delta)
+    s <- sum(delta * time)
+
+    out <- n_u * log(eta * gamma) + gamma * s + eta * (n - sum(exp(gamma * time)))
+    return(out)
+}
+
+# the negative log-likelihood
+neg_ll <- function(data, par) -ll(data, par)
+```
+
+For the `L-BFGS-B` method we also implement the gradient 
+
+```{r}
+grad_neg_ll <- function(data, par) {
+    delta <- data$status
+    time <- data$time
+
+    eta <- par[1]
+    gamma <- par[2]
+
+    n <- nrow(data)
+    n_u <- sum(delta)
+    s <- sum(delta * time)
+
+    out <- numeric(2)
+
+    out[1] <- n_u / eta + n - sum(exp(gamma * time))
+    out[2] <- n_u / gamma + s - eta * sum(time * exp(gamma * time))
+
+    return(-out)
+}
+```
+
+In the `optim()` call in the MLE function below, we set `lower = c(1e-10, 1e-10)` as both $\eta$ and $\gamma$ need to be positive. 
+
+```{r}
+mle <- function(data, par_init = c(hat_eta, hat_gamma)) {
+    opt <- optim(
+        par = par_init,
+        fn = function(par) neg_ll(data, par),
+        gr = function(par) grad_neg_ll(data, par),
+        method = "L-BFGS-B",
+        lower = c(1e-10, 1e-10)
+    )
+
+    return(opt$par) # we only return parameter estimates
+}
+```
+
+
+We can also write a function that calculates $((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}$ using the expression found in Question 3
+
+
+```{r}
+J_obs_inv_22 <- function(data, par) {
+    delta <- data$status
+    time <- data$time
+
+    eta <- par[1]
+    gamma <- par[2]
+
+    n <- nrow(data)
+    n_u <- sum(delta)
+    s <- sum(delta * time)
+    s_T2_exp <- sum(time^2 * exp(gamma * time))
+
+    out <- (n_u / gamma^2 + eta * s_T2_exp - 1 / n_u * (s + n_u / gamma)^2)^{-1}
+
+    return(out)
+}
+```
+
+::: {style="color: #1f77b4;"}
+Suggested by codex:
+
+The final line above mixes original-data quantities with bootstrap quantities. Use the local `eta`, `gamma`, and `S_T2_exp` throughout (R distinguishes uppercase `S` from lowercase `s`). Your division by `J` in the loop is correct once this function returns the correct variance:
+
+```{r}
+# J_obs_inv_22 <- function(data, par) {
+#     eta <- par[1]
+#     gamma <- par[2]
+#     time <- data$time
+#     n_u <- sum(data$status)
+#     s <- sum(data$status * time)
+#     S_T2_exp <- sum(time^2 * exp(gamma * time))
+
+#     information_gamma <- n_u / gamma^2 + eta * S_T2_exp -
+#         (s + n_u / gamma)^2 / n_u
+#     stopifnot(is.finite(information_gamma), information_gamma > 0)
+#     1 / information_gamma
+# }
+```
+
+Each bootstrap sample must provide both its own parameter estimates and its own estimated variance. The original `hat_gamma` belongs in the numerator as the fixed generating truth. A chi-squared approximation need not be exact for samples of size 50, but a negative statistic here indicates an implementation error.
+:::
+
+
+Finally, we write the bootstrap procedure for calculating the combinant
+$$
+\frac{(\hat\gamma - \gamma)^2}{((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}}.
+$$
+
+```{r}
+B <- 10000 # bootstrap samples
+
+# initialize vector of combinants
+combinant <- numeric(B)
+
+for (b in seq_len(B)) {
+    # simulate bootstrap data
+    data_b <- sim_data(n = 50)
+
+    # get the mle on the bootstrap data
+    mle_b <- mle(data = data_b) # we use MLE of eta and gamma from original data
+    
+    # calculate J_obs_inv_22 using bootstrap data and mle
+    J <- J_obs_inv_22(data_b, mle_b)
+
+    # calculate the combinant using the true hat gamma and the bootstrap gamma
+    comb <- (hat_gamma - mle_b[2])^2 / J
+    combinant[b] <- comb
+}
+```
+
+Now we compare the distribution of the combinant with that of a $\chi^2_1$-distribution. 
+
+First, we compare their (upper) quantiles
+
+```{r}
+probs <- c(0.50, 0.90, 0.95, 0.99)
+data.frame(
+    probability = probs,
+    bootstrap = unname(quantile(combinant, probs)),
+    chi_squared_1 = qchisq(probs, df = 1)
+)
+```
+
+They are fairly similar, although the bootstrap quantiles are lower for (the considered) quantiles greater than $90\%$. For the $50\%$ quantile, the bootstrap estimate is higher. 
+
+We also compare the two using a Q-Q plot
+
+```{r}
+bootstrap_qq <- data.frame(
+    theoretical = qchisq(ppoints(B), df = 1),
+    bootstrap = sort(combinant)
+)
+ggplot(bootstrap_qq, aes(theoretical, bootstrap)) +
+    geom_abline(intercept = 0, slope = 1) +
+    geom_point(alpha = 0.5, size = 0.5) +
+    labs(x = expression(paste("Theoretical ", chi[1]^2, " quantiles")),
+         y = "Bootstrap statistic quantiles")
+```
+
+The bootstrap quantiles follow the reference line closely over most of the range, supporting the $\chi^2_1$ approximation. In the extreme upper tail, the points fall below the line, suggesting a somewhat lighter bootstrap tail as we also saw in the data frame above. The deviations in the upper tail could either be because we have too little data, $n = 50$ or that tails are notoriously hard to calibrate. The $95\%$ quantile is however quite close to the one from $\chi^2_1$-distribution so this might be sensible to use as a cut-off. 
+
+
