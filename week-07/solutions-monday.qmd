@@ -19,11 +19,12 @@ theme_set(theme_bw())
 ```
 
 ## Exercise 13.1
+
 The dataset `car` from the R package RwR contains the number of car insurance claims (`Claims`) and the number of policy holders (`Holders`) cross-tabulated according to the district (`District`), the size of the motor (`Motor`) and the age of the policy holder (`Age`). The table has 64 cells, and each row in the dataset corresponds to one cell. We model the claim rate per policy holder by the Poisson regression model with log link function, main effects of the three categorical variables, and $\log($`Holders`$)$ entering as an offset. The parameter of interest is the regression $\beta_D$ parameter for district D (major cities) relative to district A, and $\exp(\beta_D)$ is the corresponding claim rate ratio.
 
 #### 1. Fit the Poisson regression model and investigate if it fits the data, e.g., by comparing the deviance to the residual degrees of freedom and by plotting the Pearson residuals. Compute the standard 95% confidence interval and the likelihood interval for $\beta_D$, and transform both intervals into intervals for the rate ratio $\exp(\beta_D)$.
 
-First, we fit the model 
+First, we fit the model
 
 ```{r}
 pois_reg_model <- glm(
@@ -34,26 +35,32 @@ pois_reg_model <- glm(
 
 summary(pois_reg_model)
 ```
-Recall equation (5.8)
-$$
+
+Recall equation (5.8) $$
 D-D_0 \overset{\text{approx}}{\sim} \varphi \chi^2_{p-p_0}
-$$
-Where $D$ is the deviance of some 'full' model and $D_0$ the deviance of some null model. Taking the full model to be the saturated model where each point has it's own mean and the null model to be the from above we find that
+$$ 
+
+Where $D$ is the deviance of some "full" model and $D_0$ the deviance of some null model. Taking the full model to be the saturated model where each point has it's own mean and the null model to be the from above we find that 
+
 $$
 D_0 \overset{\text{approx}}{\sim} \varphi \chi^2_{n-p}.
-$$
-If the Poisson model is well-specified $\varphi = 1$, which indicates that $\mathbb{E}[D_0/(n-p)] \approx 1$. We find 
-we find that
+$$ 
+
+If the Poisson model is well-specified $\varphi = 1$, which indicates that $\mathbb{E}[D_0/(n-p)] \approx 1$. We find we find that
+
 ```{r}
 D <- deviance(pois_reg_model)
 df <- df.residual(pois_reg_model)
 
 D / df
 ```
+
 Which is not too far from 1. We can also check how extreme our obtained deviance is compared to the approximated distribution,
+
 ```{r}
 1-pchisq(D,df)
 ```
+
 Which does not indicate any evidence of lack of fit. We investigate the mean-value structure and the variance, by plotting the Pearson residuals
 
 ```{r}
@@ -71,7 +78,7 @@ df_diag |> ggplot(aes(x = fitted, y = residuals)) +
     )
 ```
 
-The smoother stays fairly close to zero, without any real systematic trend. A few large fitted values contribute to the uncertainty in the right-hand side of the plot. The residual plot shows no obvious evidence of lack of fit. 
+The smoother stays fairly close to zero, without any real systematic trend. A few large fitted values contribute to the uncertainty in the right-hand side of the plot. The residual plot shows no obvious evidence of lack of fit.
 
 We compare the residual plot to the residual plots we get when we simulate from the fitted model
 
@@ -133,7 +140,7 @@ phi_hat_full
 
 The estimatied dispersion parameter is fairly close to the theoretical value of $1$ for a Poisson model, and there is no indication of overdispersion (if anything, the model is slightly under-dispersed).
 
-We compute the standard $95\%$ confidence interval and the likelihood confidence interval for $\beta_D$ using `confint.default()` and `confint()`, respectively. We also transform the interval using `exp`. 
+We compute the standard $95\%$ confidence interval and the likelihood confidence interval for $\beta_D$ using `confint.default()` and `confint()`, respectively. We also transform the interval using `exp`.
 
 ```{r}
 CIs_beta <- data.frame(
@@ -160,18 +167,15 @@ exp(CIs_beta_D) |> round(3)
 
 #### 2. Compute the sandwich estimator (13.12) of the asymptotic covariance matrix explicitly from the model matrix, the working weights and the working residuals as in Section 13.4.2. Do the computation using both representations, (13.13) and (13.14), of the weights $\tilde w_{ii}$, and compare the results to the result of `sandwich()`. Compute the robust $95\%$ confidence interval for $\beta_D$.
 
-The sandwich estimator of the asymptotic covariance matrix is 
-$$
+The sandwich estimator of the asymptotic covariance matrix is $$
 \tilde \Sigma = (\mathbf{X}^\top \hat{\mathbf{W}} \mathbf{X})^{-1}(\mathbf{X}^\top \tilde{\mathbf{W}}\mathbf{X}) (\mathbf{X}^\top \hat{\mathbf{W}}\mathbf{X})^{-1}.
 $$
 
-The matrix $\hat{\mathbf{W}}$ is a diagonal matrix and the diagonal is given by
-$$
+The matrix $\hat{\mathbf{W}}$ is a diagonal matrix and the diagonal is given by $$
 \hat w_{ii} = \frac{(\hat\mu_i')^2}{\mathcal{V}(\hat\mu_i)},
 $$
 
-and $\tilde{\mathbf{W}}$ is also a diagonal matrix with diagonal given by one of the two representations, using either (13.13) or (13.13), 
-$$
+and $\tilde{\mathbf{W}}$ is also a diagonal matrix with diagonal given by one of the two representations, using either (13.13) or (13.13), $$
 \tilde w_{ii} \overset{(13.13)}{=}\hat w_{ii} \frac{(Y_i - \hat\mu_i)^2}{\mathcal{V}(\hat\mu_i)}, \quad \tilde w_{ii} \overset{(13.14)}{=}\left(\hat w_{ii} \frac{Y_i - \hat\mu_i}{\hat\mu_i'}\right)^2. 
 $$
 
@@ -212,7 +216,7 @@ and also to the `sandwich()` function from the `sandwich` package
 (sandwich::sandwich(pois_reg_model) - Sigma_tilde_13) |> range()
 ```
 
-They are equal (up to numerics). Finally we compute the robust $95\%$ confidence interval for $\beta_D$ using the robust standard error found from the sandwich estimator 
+They are equal (up to numerics). Finally we compute the robust $95\%$ confidence interval for $\beta_D$ using the robust standard error found from the sandwich estimator
 
 ```{r}
 robust_se <- sqrt(Sigma_tilde_13["DistrictD", "DistrictD"])
@@ -223,7 +227,7 @@ robust_ci <- coef(pois_reg_model)["DistrictD"] +
 robust_ci
 ```
 
-and if we compare it to the Wald and likelihood based interval, 
+and if we compare it to the Wald and likelihood based interval,
 
 ```{r}
 CIs_beta_D |>
@@ -233,8 +237,6 @@ CIs_beta_D |>
     ) |>
     round(3)
 ```
-
-
 
 ```{r}
 #| label: beta-d-interval-comparison
@@ -265,14 +267,13 @@ beta_D_interval_plot <- ggplot(
 beta_D_interval_plot
 ```
 
-The robust interval is a narrower. 
+The robust interval is a narrower.
 
 #### 3. Compare the model-based and the robust standard errors for all the regression parameters. Even though the Poisson model appears to fit the data well, the two sets of standard errors differ considerably. To investigate which of the two interval constructions for $\beta_D$ has an actual coverage closest to the nominal $95\%$, simulate 1000 new datasets from the fitted Poisson model (conditionally on the predictors and the number of policy holders), refit the model to each simulated dataset, and compute both intervals. Estimate the actual coverage of each of the two interval constructions and explain the result.
 
-*Hint: The sandwich estimator is itself an estimator with sampling variability. How many observations are used to estimate the $10 \times 10$ matrix $C_1$?*
+*Hint: The sandwich estimator is itself an estimator with sampling variability. How many observations are used to estimate the* $10 \times 10$ matrix $C_1$?
 
 First we compare the model-based and the robust standard errors. The standard errors from the model-based
-
 
 Extract the model-based standard errors directly from the summary's coefficient table. Equivalently, use `sqrt(diag(vcov(pois_reg_model)))`. The same diagonal-and-square-root calculation applies to the sandwich covariance matrix.
 
@@ -291,7 +292,7 @@ SE_comparison |>
     mutate(across(where(is.numeric), ~ round(.x, 4)))
 ```
 
-A ratio below 1 means that the robust standard error is smaller; a ratio above 1 means it is larger. Robust standard errors are not necessarily larger than model-based standard errors. We also see that it differs between the parameters; for some the model-based standard errors are smaller and for some they are larger. 
+A ratio below 1 means that the robust standard error is smaller; a ratio above 1 means it is larger. Robust standard errors are not necessarily larger than model-based standard errors. We also see that it differs between the parameters; for some the model-based standard errors are smaller and for some they are larger.
 
 Next we simulate 1000 new datasets from the model to compare the actual coverage rate of the confidence intervals.
 
@@ -357,16 +358,16 @@ data.frame(
 )
 ```
 
-We see that the Wald and the likelihood based confidence interval both have actual coverage close to $95\%$ whereas the robust intervals do not, they only have actual coverage around $87.5\%$. 
+We see that the Wald and the likelihood based confidence interval both have actual coverage close to $95\%$ whereas the robust intervals do not, they only have actual coverage around $87.5\%$.
 
-Recall that we have to estimate $C_1$ which is a $10 \times 10$ matrix. Because it is a covariance matrix, there are 55 distinct entries we have to estimate. In total, we have $`{r} nrow(car)`$ observations, so we estimate $55$ distrinct entries using only $64$ observations. This can make the sandwich standard errors variable poorly estimated in a finite (small) sample. 
+Recall that we have to estimate $C_1$ which is a $10 \times 10$ matrix. Because it is a covariance matrix, there are 55 distinct entries we have to estimate. In total, we have $`{r} nrow(car)`$ observations, so we estimate $55$ distrinct entries using only $64$ observations. This can make the sandwich standard errors variable poorly estimated in a finite (small) sample.
 
-This points towards the robust standard errors being too small, and the lower coverage is also partially explained by the more narrow robust confidence interval compared to the model-based. 
-
+This points towards the robust standard errors being too small, and the lower coverage is also partially explained by the more narrow robust confidence interval compared to the model-based.
 
 #### 4. Refit the model without Age. Show that this model is overdispersed, and compute the standard, the quasi-Poisson and the robust 95% confidence intervals for $\beta_D$ in this model. Compare the intervals to each other and to those obtained for the full model.
 
 First we fit the model without `Age`
+
 ```{r}
 fit_m_age <- glm(
     Claims ~ District + Motor + offset(log(Holders)),
@@ -376,6 +377,7 @@ fit_m_age <- glm(
 ```
 
 We estimate the dispersion parameter similar to be before and get
+
 ```{r}
 m_age_diag <- augment(
     fit_m_age,
@@ -387,7 +389,7 @@ phi_hat_no_age <- sum(m_age_diag$.resid^2) / df.residual(fit_m_age)
 phi_hat_no_age
 ```
 
-The estimate is $`{r} phi_hat_no_age |> round(5)`$ which indicates some overdispersion, since in a Poisson glm, it is fixed and equal to 1. This could also be due to a, now, misspecified mean structure, after removing `Age`. 
+The estimate is $`{r} phi_hat_no_age |> round(5)`$ which indicates some overdispersion, since in a Poisson glm, it is fixed and equal to 1. This could also be due to a, now, misspecified mean structure, after removing `Age`.
 
 To overcome this, we fit the quasi-Poisson model
 
@@ -399,8 +401,7 @@ fit_quasi <- glm(
 )
 ```
 
-
-We create confidence intervals for $\beta_D$ using the overdispersed Poisson model without age, both Robust and standard Wald, and using the quasi-Poisson model. We compare them to the confidence intervals using the full model. 
+We create confidence intervals for $\beta_D$ using the overdispersed Poisson model without age, both Robust and standard Wald, and using the quasi-Poisson model. We compare them to the confidence intervals using the full model.
 
 ```{r}
 #| label: compare-beta-d-models
@@ -445,7 +446,7 @@ beta_D_CI_comparison |>
     mutate(across(where(is.numeric), ~ round(.x, 4)))
 ```
 
-The Poisson Wald for the model without `Age` are shifted to the left compared to the Poisson Wald for the full model. The Quasi-Poisson is the widest of all, having the same lower endpoint as the model without `Age` but the upper endpoint being larger than any of the other. The robust Wald for the model without `Age` is wider than the one for the full model. 
+The Poisson Wald for the model without `Age` are shifted to the left compared to the Poisson Wald for the full model. The Quasi-Poisson is the widest of all, having the same lower endpoint as the model without `Age` but the upper endpoint being larger than any of the other. The robust Wald for the model without `Age` is wider than the one for the full model.
 
 #### 5. The robust interval in question 4 accounts for the misspecification of the variance, but Age has been left out of the mean value model. Discuss, in the light of the discussion following Example 13.5, which parameter the estimator of $\beta_D$ targets in the model without `Age`, and whether the robust interval is a useful interval estimate of the effect of district D. The sandwich estimator was motivated in Section 13.2.3 under assumption A6. Discuss if this assumption is reasonable for the cells of a cross-tabulation such as the `car` data. Which of the intervals computed in this exercise would you report?
 
@@ -453,102 +454,89 @@ In the model without Age, $\beta_D$ compares district D with district A, adjusti
 
 A6 assumes that the pairs $(X_i,Y_i)$ are i.i.d. Here the rows are predefined groups, one for each District–Motor–Age combination, rather than independent random draws from a common distribution of predictor-response pairs. Each row has its own fixed predictor combination and number of holders, so the pairs are not identically distributed under this table setup. The cell counts may still be independent, but that alone does not satisfy A6. See also the discussion in nonparametric boostrapping *"This may be a reasonable assumption when the predictors and the response are observed jointly, while it makes little sense for an experiment where the predictors are fixed by a design."*
 
-Finally, I would report the confidence intervals based on the likelihood using the full model. There are no clear signs of model misspecification and the actual coverage is close the the nominal. 
+Finally, I would report the confidence intervals based on the likelihood using the full model. There are no clear signs of model misspecification and the actual coverage is close the the nominal.
 
 ## Exercise 13.2 (and question 7)
 
-The Gompertz distribution on $[0, \infty)$ has survival function 
-$$
+The Gompertz distribution on $[0, \infty)$ has survival function $$
 S(t) = \exp(-\eta(e^{\gamma t} - 1)), \quad t\geq0,
 $$
 
-for parameters $\eta,\gamma >0$. We assume in the following that
-$$
+for parameters $\eta,\gamma >0$. We assume in the following that $$
 (T_1, \delta_1), \dots, (T_n, \delta_n)
 $$
 
-are $n$ censored i.i.d. survival times following a Gompertz distribution. Introduce also the summary statistics
-$$
+are $n$ censored i.i.d. survival times following a Gompertz distribution. Introduce also the summary statistics $$
 t = \sum_{i = 1}^{n} T_i, \quad s = \sum_{i = 1}^{n}\delta_i T_i, \quad \textrm{and} \quad n_u = \sum_{i = 1}^{n}\delta_i.
 $$
- 
+
 The values of these summary statistics for a dataset are given in the following table together with some additional statistics.
 
 | **Statistic:** | $n$ | $n_u$ | $t$ | $s$ | $\hat\gamma$ | $\sum_{i=1}^{n} e^{\hat\gamma T_i}$ | $\sum_{i=1}^{n} T_i^2 e^{\hat\gamma T_i}$ |
-|:---|:---|:---|:---|:---|:---|:---|:---|
+|:--------|:--------|:--------|:--------|:--------|:--------|:--------|:--------|
 | **Value:** | 50 | 32 | 1637 | 1384 | 0.09390 | 3396 | 9949983 |
 
 #### 1. Compute the hazard function for the Gompertz distribution. Show that the log-likelihood is
+
 $$
 \ell(\eta, \gamma) = \log(\eta \, \gamma)n_u + \gamma s + \eta\left(n - \sum_{i = 1}^{n} e^{\gamma T_i} \right).
 $$
 
-First, we find the cumulative hazard. Recall, that
-$$
+First, we find the cumulative hazard. Recall, that $$
 \Lambda(t) = -\log(S(t)) = \eta(e^{\gamma t} - 1),
 $$
 
-such that the hazard function is
-$$
+such that the hazard function is $$
 \lambda(t) = \Lambda'(t) = \eta \gamma e^{\gamma t}. 
 $$
 
-Using Proposition 11.1, we can find the likelihood,
-$$
+Using Proposition 11.1, we can find the likelihood, $$
 L(\eta, \gamma) = \prod_{i = 1}^{n} \lambda_i(T_i)^{\delta_i} e^{-\Lambda_i(T_i)} = \prod_{i = 1}^{n} \left(\eta \gamma e^{\gamma T_i}\right)^{\delta_i} \exp(-\eta(e^{\gamma T_i} - 1)).
 $$
 
-It follows that the log-likelihood is
-\begin{align*}
+It follows that the log-likelihood is \begin{align*}
 \ell(\eta, \gamma) &= \log L(\eta, \gamma) = \sum_{i = 1}^{n} \delta_i \log(\eta \gamma e^{\gamma T_i}) - \eta(e^{\gamma T_i} - 1) \\
 &= \sum_{i = 1}^{n} \delta_i \log(\eta \gamma) + \delta_i \gamma T_i - \eta(e^{\gamma T_i} - 1)\\ 
 &= n_u\log(\eta \gamma) + \gamma s + \eta \left(n - \sum_{i = 1}^n e^{\gamma T_i} \right)
-\end{align*}
-as desired.
-
+\end{align*} as desired.
 
 #### 2. Show that the MLE (provided it exists) satisfies the equations
+
 $$
 \sum_{i = 1}^{n} e^{\gamma T_i} = n + \frac{n_u}{\eta} \quad \textrm{and} \quad \sum_{i = 1}^{n} T_i e^{\gamma T_i} = \frac{s}{\eta} + \frac{n_u}{\eta \gamma}.
 $$
 
-If the MLE exists (in the open set $(0, \infty)^2$) then it must satisfy $D \ell(\eta, \gamma) = 0$. Taking the derivative of the log-likelihood using the expression found in question 1, we find
-$$
+If the MLE exists (in the open set $(0, \infty)^2$) then it must satisfy $D \ell(\eta, \gamma) = 0$. Taking the derivative of the log-likelihood using the expression found in question 1, we find $$
 D\ell(\eta, \gamma) = \left(\frac{n_u}{\eta} + n - \sum_{i = 1}^n e^{\gamma T_i}, \frac{n_u}{\gamma} + s - \eta\sum_{i = 1}^n T_i e^{\gamma T_i}\right).
 $$
 
-Solving the score equation thus yields the two formulas. 
+Solving the score equation thus yields the two formulas.
 
 #### 3. With $\mathcal{J}^{\operatorname{obs}}$ denoting the observed Fisher information show that
+
 $$
 ((\mathcal{J}^{\operatorname{obs}})^{-1})_{22} = \left(\frac{n_u}{\hat\gamma^2} + \hat\eta \sum_{i = 1}^n T_i^2 e^{\hat\gamma T_i} - \frac{1}{n_u}\left(s + \frac{n_u}{\hat\gamma}\right)^2\right)^{-1}.
 $$
 
-The observed Fisher information is found by plugging in the MLE of $\eta, \gamma$ in the expression of the negative Hessian of the log-likelihood. 
+The observed Fisher information is found by plugging in the MLE of $\eta, \gamma$ in the expression of the negative Hessian of the log-likelihood.
 
-The negative Hessian of the log-likelihood is
-$$
+The negative Hessian of the log-likelihood is $$
 -D^2\ell(\eta, \gamma) = \begin{pmatrix} \frac{n_u}{\eta^2} & \sum_{i = 1}^n T_i e^{\gamma T_i} \\ \sum_{i = 1}^n T_i e^{\gamma T_i} & \frac{n_u}{\gamma^2} + \hat\eta\sum_{i = 1}^n T_i^2 e^{\gamma T_i}\end{pmatrix}.
 $$
 
-Thus, by plugging in the MLE (if it exists), $(\hat\eta, \hat\gamma)$, we find that the observed Fisher information is
-\begin{align*}
+Thus, by plugging in the MLE (if it exists), $(\hat\eta, \hat\gamma)$, we find that the observed Fisher information is \begin{align*}
 \mathcal{J}^{\operatorname{obs}} = -D^2\ell(\hat\eta, \hat\gamma) &= \begin{pmatrix} \frac{n_u}{\hat\eta^2} & \sum_{i = 1}^n T_i e^{\hat\gamma T_i} \\ \sum_{i = 1}^n T_i e^{\hat\gamma T_i} & \frac{n_u}{\hat\gamma^2} + \hat\eta \sum_{i = 1}^n T_i^2 e^{\hat\gamma T_i}\end{pmatrix}\\ &= \begin{pmatrix} \frac{n_u}{\hat\eta^2} & \frac{s}{\hat\eta} + \frac{n_u}{\hat\eta\hat\gamma} \\ \frac{s}{\hat\eta} + \frac{n_u}{\hat\eta\hat\gamma} & \frac{n_u}{\hat\gamma^2} + \hat\eta \sum_{i = 1}^n T_i^2e^{\hat\gamma T_i}\end{pmatrix},
-\end{align*}
-where we use the result from question 2. 
+\end{align*} where we use the result from question 2.
 
-To find the 2,2 entry in the inverse, we use the following formula for inversion of a $2\times 2$ matrix
-$$
+To find the 2,2 entry in the inverse, we use the following formula for inversion of a $2\times 2$ matrix $$
 \begin{pmatrix} A & B \\ C & D \end{pmatrix}^{-1} = \frac{1}{AD - BC}\begin{pmatrix} D & -B \\ -C & A \end{pmatrix}
 $$
 
-such that the 2,2 entry in the inverse is given as 
-$$
+such that the 2,2 entry in the inverse is given as $$
 \left(\begin{pmatrix} A & B \\ C & D \end{pmatrix}^{-1} \right)_{22} = \frac{A}{AD - BC} = \left(\frac{AD - BC}{A}\right)^{-1} = \left(D - \frac{BC}{A}\right)^{-1} = \left(D - \frac{B^2}{A}\right)^{-1}.
 $$
 
-Applying this we find that
-$$
+Applying this we find that $$
 \begin{aligned}
 ((\mathcal{J}^{\operatorname{obs}})^{-1})_{22} &= \left(\frac{n_u}{\hat\gamma^2} + \hat\eta \sum_{i = 1}^{n} T_i^2 e^{\hat\gamma T_i} - \frac{\left(\frac{s}{\hat\eta} + \frac{n_u}{\hat\eta\hat\gamma}\right)^2}{\frac{n_u}{\hat\eta^2}}\right)^{-1} \\ 
 &= \left(\frac{n_u}{\hat\gamma^2} + \hat\eta \sum_{i = 1}^{n} T_i^2 e^{\hat\gamma T_i} - \frac{\frac{1}{\hat\eta^2}\left(s + \frac{n_u}{\hat\gamma}\right)^2}{\frac{n_u}{\hat\eta^2}}\right)^{-1} \\
@@ -556,12 +544,11 @@ $$
 \end{aligned} 
 $$
 
-as desired. 
+as desired.
 
 #### 4. Using the summary statistics from the table above show that $\hat\eta = 0.009564$ and compute an approximate likelihood interval for $\hat\gamma$.
 
-From Question 2 it follows that the MLE of $\eta$, $\hat\eta$ is given as 
-$$
+From Question 2 it follows that the MLE of $\eta$, $\hat\eta$ is given as $$
 \hat\eta = \frac{n_u}{\sum_{i = 1}^{n} e^{\gamma T_i} - n}.
 $$
 
@@ -580,13 +567,11 @@ hat_eta <- n_u / (s_exp - n)
 hat_eta
 ```
 
-Because $((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}$ is positive definite Lemma 13.1 gives the quadratic approximation of the likelihood as
-$$
+Because $((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}$ is positive definite Lemma 13.1 gives the quadratic approximation of the likelihood as $$
 h(\gamma) = \frac{(\hat\gamma - \gamma)^2}{((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}},
 $$
 
-see also (13.7). This is $Z^2$ for the $Z$ statistic, so we can use the cut-offs from a $\chi^2_1$ distribution and obtain an approximate likelihood interval for $\gamma$ as 
-$$
+see also (13.7). This is $Z^2$ for the $Z$ statistic, so we can use the cut-offs from a $\chi^2_1$ distribution and obtain an approximate likelihood interval for $\gamma$ as $$
 \hat\gamma \pm z_{0.975}\widehat{\operatorname{SE}}(\gamma),
 $$
 
@@ -608,10 +593,9 @@ From hereon it is assumed that the censoring distribution is exponential with ra
 
 #### 5. Argue why $\hat\lambda = (n - n_u) / t$ is a sensible estimator of $\lambda$.
 
-We will use Example 11.4 for the exponential distribution. In our setup, $\delta_i = 1$ means that we observe the actual surivival time, and $\delta_i = 0$ means that censoring occurs first, that is we observe $C_i$. 
+We will use Example 11.4 for the exponential distribution. In our setup, $\delta_i = 1$ means that we observe the actual surivival time, and $\delta_i = 0$ means that censoring occurs first, that is we observe $C_i$.
 
-For estimation of $\lambda$ we are interested in the censoring distribution, so we consider the data from that perspective. The observed event indicator for the censoring-time distribution is thus $1 - \delta_i$ (instead of $\delta_i$ for the survival time), so that an estimator of $\lambda$ is given as 
-$$
+For estimation of $\lambda$ we are interested in the censoring distribution, so we consider the data from that perspective. The observed event indicator for the censoring-time distribution is thus $1 - \delta_i$ (instead of $\delta_i$ for the survival time), so that an estimator of $\lambda$ is given as $$
 \hat\lambda = \frac{\sum_{i = 1}^n (1 - \delta_i)}{\sum_{i = 1}^n T_i}
  = \frac{n - \sum_{i = 1}^n \delta_i}{t} = \frac{n - n_u}{t}.
 $$
@@ -625,16 +609,15 @@ lambda_hat <- (n - n_u) / t
 
 #### 6. Simulate a new dataset, $(\tilde T_1, \tilde \delta_1), \dots, (\tilde T_n, \tilde \delta_n)$, using the estimated parameters $\hat\eta$ and $\hat\gamma$ for the Gompertz survival distribution and $\hat\lambda$ for the exponential censoring distribution. Compute and plot the Kaplan-Meier estimator of the survival function for the simulated data and compare it to the theoretical survival function.
 
-First, we have to simulate the actual survival times from a Gompertz distribution. There is no default simulation function in `R` to do this, so we use the general result that if $X$ has distribution function $F$ then $F(X)\sim \operatorname{unif}(0,1)$. In fact, we can also use the survival function $S = 1 - F$ because $S(X) = 1 - F(X) \sim \operatorname{unif}(0,1)$ since $1 - U$ is uniformly distributed on $(0,1)$ whenever $U$ is. 
+First, we have to simulate the actual survival times from a Gompertz distribution. There is no default simulation function in `R` to do this, so we use the general result that if $X$ has distribution function $F$ then $F(X)\sim \operatorname{unif}(0,1)$. In fact, we can also use the survival function $S = 1 - F$ because $S(X) = 1 - F(X) \sim \operatorname{unif}(0,1)$ since $1 - U$ is uniformly distributed on $(0,1)$ whenever $U$ is.
 
-Since we have the survival function $S(t) = \exp(-\eta(e^{\gamma t} - 1))$ given in the exercise we analytically find the inverse and use that for simulation. 
+Since we have the survival function $S(t) = \exp(-\eta(e^{\gamma t} - 1))$ given in the exercise we analytically find the inverse and use that for simulation.
 
 ```{r}
 S <- function(t, eta = hat_eta, gamma = hat_gamma) exp(-eta * (exp(gamma * t) - 1))
 
 S_inv <- function(u, eta = hat_eta, gamma = hat_gamma) log1p(-log(u) / eta) / gamma
 ```
-
 
 ```{r}
 rgompertz <- function(n, eta = hat_eta, gamma = hat_gamma) {
@@ -692,22 +675,22 @@ summary(KM, data.frame = TRUE) |>
 The implementation of the simulation is the first step in the construction of a parametric bootstrap algorithm, which, for instance, can be used to calibrate the likelihood interval.
 
 #### 7. Implement a parametric bootstrap algorithm (remember parameter constraints) to obtain a bootstrap approximation of the distribution of the statistic
+
 $$
 \frac{(\hat\gamma - \gamma)^2}{((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}}.
 $$
 
 Compare it with a $\chi^2_1$-distribution.
 
-*Hint: The implementation will require the numerical solution of the score equation for the computation of the MLE. You will only need to numerically solve a univariate equation, and you can implement your own Newton algorithm. You can also use the R function `uniroot()`. Alternatively, you can use the R function `optim()` for direct minimization of the negative log-likelihood.* 
+*Hint: The implementation will require the numerical solution of the score equation for the computation of the MLE. You will only need to numerically solve a univariate equation, and you can implement your own Newton algorithm. You can also use the R function `uniroot()`. Alternatively, you can use the R function `optim()` for direct minimization of the negative log-likelihood.*
 
-To implement a parametric bootstrap procedure of the quantity
-$$
+To implement a parametric bootstrap procedure of the quantity $$
 \frac{(\hat\gamma - \gamma)^2}{((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}},
 $$
 
-we need to be able to 1) simulate datasets; 2) obtain the maximum likelihood estimate of $\gamma$, $\hat\gamma$; 3) calculate $((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}$. 
+we need to be able to 1) simulate datasets; 2) obtain the maximum likelihood estimate of $\gamma$, $\hat\gamma$; 3) calculate $((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}$.
 
-1) is (almost) done by Question 6 where we simulate a new dataset, we just have to make this into a function.
+1)  is (almost) done by Question 6 where we simulate a new dataset, we just have to make this into a function.
 
 ```{r}
 sim_data <- function(n = 50, pars = NULL) {
@@ -748,7 +731,7 @@ ll <- function(data, par) {
 neg_ll <- function(data, par) -ll(data, par)
 ```
 
-For the `L-BFGS-B` method we also implement the gradient 
+For the `L-BFGS-B` method we also implement the gradient
 
 ```{r}
 grad_neg_ll <- function(data, par) {
@@ -771,7 +754,7 @@ grad_neg_ll <- function(data, par) {
 }
 ```
 
-In the `optim()` call in the MLE function below, we set `lower = c(1e-10, 1e-10)` as both $\eta$ and $\gamma$ need to be positive. 
+In the `optim()` call in the MLE function below, we set `lower = c(1e-10, 1e-10)` as both $\eta$ and $\gamma$ need to be positive.
 
 ```{r}
 mle <- function(data, par_init = c(hat_eta, hat_gamma)) {
@@ -787,9 +770,7 @@ mle <- function(data, par_init = c(hat_eta, hat_gamma)) {
 }
 ```
 
-
 We can also write a function that calculates $((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}$ using the expression found in Question 3
-
 
 ```{r}
 J_obs_inv_22 <- function(data, par) {
@@ -834,9 +815,7 @@ The final line above mixes original-data quantities with bootstrap quantities. U
 Each bootstrap sample must provide both its own parameter estimates and its own estimated variance. The original `hat_gamma` belongs in the numerator as the fixed generating truth. A chi-squared approximation need not be exact for samples of size 50, but a negative statistic here indicates an implementation error.
 :::
 
-
-Finally, we write the bootstrap procedure for calculating the combinant
-$$
+Finally, we write the bootstrap procedure for calculating the combinant $$
 \frac{(\hat\gamma - \gamma)^2}{((\mathcal{J}^{\operatorname{obs}})^{-1})_{22}}.
 $$
 
@@ -862,7 +841,7 @@ for (b in seq_len(B)) {
 }
 ```
 
-Now we compare the distribution of the combinant with that of a $\chi^2_1$-distribution. 
+Now we compare the distribution of the combinant with that of a $\chi^2_1$-distribution.
 
 First, we compare their (upper) quantiles
 
@@ -875,7 +854,7 @@ data.frame(
 )
 ```
 
-They are fairly similar, although the bootstrap quantiles are lower for (the considered) quantiles greater than $90\%$. For the $50\%$ quantile, the bootstrap estimate is higher. 
+They are fairly similar, although the bootstrap quantiles are lower for (the considered) quantiles greater than $90\%$. For the $50\%$ quantile, the bootstrap estimate is higher.
 
 We also compare the two using a Q-Q plot
 
@@ -891,6 +870,4 @@ ggplot(bootstrap_qq, aes(theoretical, bootstrap)) +
          y = "Bootstrap statistic quantiles")
 ```
 
-The bootstrap quantiles follow the reference line closely over most of the range, supporting the $\chi^2_1$ approximation. In the extreme upper tail, the points fall below the line, suggesting a somewhat lighter bootstrap tail as we also saw in the data frame above. The deviations in the upper tail could either be because we have too little data, $n = 50$ or that tails are notoriously hard to calibrate. The $95\%$ quantile is however quite close to the one from $\chi^2_1$-distribution so this might be sensible to use as a cut-off. 
-
-
+The bootstrap quantiles follow the reference line closely over most of the range, supporting the $\chi^2_1$ approximation. In the extreme upper tail, the points fall below the line, suggesting a somewhat lighter bootstrap tail as we also saw in the data frame above. The deviations in the upper tail could either be because we have too little data, $n = 50$ or that tails are notoriously hard to calibrate. The $95\%$ quantile is however quite close to the one from $\chi^2_1$-distribution so this might be sensible to use as a cut-off.

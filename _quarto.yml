@@ -5,6 +5,7 @@ project:
     - index.qmd
     - "week-*/solutions-*.qmd"
     - "week-*/kasper-solutions/solutions-*.qmd"
+    - "week-06/kasper-solutions/11.7.qmd"
     - "/exam assignments"
 
 website:
