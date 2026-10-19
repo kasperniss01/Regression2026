@@ -1,7 +1,466 @@
 ---
 title: "Week 7: Wednesday Solutions"
+author: "Kasper Niss"
 ---
 
-## Exercise 1
+```{r}
+#| message: false
+library(RwR)
+library(ggplot2)
+library(tibble)
+library(splines)
+library(dplyr)
+library(sandwich)
+library(lmtest)
+library(broom)
+library(survival)
 
-Add the exercise and its solution here.
+theme_set(theme_bw())
+```
+
+## Exercise 13.3
+This exercise investigates the effect of model selection on the standard confidence interval constructions.
+
+The exercise uses the `cholost` dataset from the R package RwR, and you will consider models of the effect of *compliance* on cholesterol decrease. Data is from a trial where 164 men took cholestyramine for a number of years. Their decrease in blood-level cholesterol from the beginning to the end of the trial is the response variable (`y` in the dataset). Not all of them took the intended dose. In the dataset the variable `c` measures compliance. It is a monotone transformation of the proportion of the dose actually taken.
+
+The conditional expectation of the decrease in cholesterol level $Y$ as a function of the compliance $C$ is denoted
+$$
+\mathbb{E}(Y \mid C) = f(C),
+$$
+
+and it is assumed throughout that $\mathbb{V}(Y \mid C) = \sigma^2$.
+
+#### 0. 
+Before we start the exercise we take a quick glance at the data
+
+```{r}
+summary(cholost)
+```
+
+The data contains two variables `y` and `c`, the response and the compliance, respectively. 
+
+A scatterplot of `y` against `c` shows
+
+```{r}
+ggplot(cholost, aes(x = c, y = y)) + 
+    geom_point()
+```
+
+It looks like that `y` increases with `c`. 
+
+#### 1. Fit the model 
+$$
+f(c) = \beta_0 + \beta_1 c
+$$
+
+of the cholesterol decrease as a function of compliance. Investigate the model fit.
+
+We first fit the model. Note that the constant variance assumption corresponds to a linear model, so we use `lm`. 
+
+```{r}
+lin_fit <- lm(y ~ c, data = cholost)
+
+summary(lin_fit)
+```
+
+such that the estimated mean function is
+$$
+\hat f(c) = \hat\beta_0 + \hat\beta_1 c = 32.870 + 21.276c.
+$$
+
+Next, we investigate the model fit. 
+
+```{r}
+lin_fit_diag <- augment(lin_fit)
+
+p1 <- ggplot(lin_fit_diag, aes(.fitted, .std.resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", size = 1, formula = y ~ x) +
+  xlab("fitted values") +
+  ylab("standardized residuals")
+p2 <- ggplot(lin_fit_diag, aes(sample = .std.resid)) + geom_qq() + geom_abline() +
+  xlab("theoretical quantiles") +
+  ylab("")
+p3 <- ggplot(lin_fit_diag, aes(cholost$c, .std.resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", size = 1, formula = y ~ x) +
+  xlab("c") +
+  ylab("standardized residuals")
+gridExtra::grid.arrange(p1, p3, p2, ncol = 3)
+```
+
+The fit does not look great. Although the confidence interval for the smoother on both residual plots contain $0$, the smoother does not look constant. Furthermore, it looks like the residuals get larger for larger fitted values (funnel shape) and violates the constant variance assumption. 
+
+Finally, we visualize the model
+
+```{r}
+ggplot(cholost, aes(x = c, y = y)) + 
+    geom_point() + 
+    geom_smooth(method = "lm")
+```
+
+In the following $f$ is expanded using natural cubic splines. Using the R terminology, an expansion with $\operatorname{df}$ degrees of freedom is a model with $\operatorname{df} - 1$ knots, $\operatorname{df}$ basis functions and $\operatorname{df} + 1$ parameters (an intercept and one parameter for each of the basis functions).
+
+#### 2. Fit $f$ as a natural cubic spline with 3 degrees of freedom. Give a graphical presentation of the resulting model. Compare the model to the linear regression model above.
+
+```{r}
+fit_df3 <- lm(y ~ ns(c, df = 3), data = cholost)
+```
+
+We are not asked to formaly verify the fit of the model, but we choose to anyway (for completeness). 
+
+```{r}
+df3_diag <- augment(fit_df3)
+
+p1_df3 <- ggplot(df3_diag, aes(.fitted, .std.resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", size = 1, formula = y ~ x) +
+  xlab("fitted values") +
+  ylab("standardized residuals")
+p2_df3 <- ggplot(df3_diag, aes(sample = .std.resid)) + geom_qq() + geom_abline() +
+  xlab("theoretical quantiles") +
+  ylab("")
+p3_df3 <- ggplot(df3_diag, aes(cholost$c, .std.resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", size = 1, formula = y ~ x) +
+  xlab("c") +
+  ylab("standardized residuals")
+gridExtra::grid.arrange(p1_df3, p3_df3, p2_df3, ncol = 3)
+```
+
+Now, there are no obvious evidence of lack of fit! 
+
+Graphically, the model with 3 $\operatorname{df}$s looks like
+
+```{r}
+ggplot(data = cholost, aes(x = c, y = y)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ ns(x, df = 3))
+```
+
+We can also compare it to the function $f(c) = \beta_0 + \beta_1c$
+
+```{r}
+ggplot(cholost, aes(x = c, y = y)) +
+  geom_point() +
+  geom_smooth(
+    method = "lm", formula = y ~ ns(x, df = 3),
+    aes(colour = "y ~ ns(c, df = 3)")
+  ) +
+  geom_smooth(
+    method = "lm", formula = y ~ x,
+    aes(colour = "y ~ c")
+  ) +
+  scale_colour_manual(
+    name = "Model",
+    values = c(
+      "y ~ ns(c, df = 3)" = "red",
+      "y ~ c" = "blue"
+    )
+  ) + guides(colour = guide_legend(
+    override.aes = list(fill = NA)
+  ))
+```
+
+Overall the two fits do not look too different, but of course, they are not the same since one is assuming the mean is nonlinear whereas the other assumes it linear. 
+
+We can also compare the models in-sample predictive performance
+
+```{r}
+lin_fit |> summary() |> _$adj.r.squared
+fit_df3 |> summary() |> _$adj.r.squared
+```
+
+here there is also not much of a difference, although the model with 3 degrees of freedom predicts slightly better in-sample. Finally, we compare the two using `anova``
+
+```{r}
+anova(lin_fit, fit_df3)
+```
+
+The $F$-test gives a p-value just above $0.05$, so we do not reject the linear model at the $5\%$ level. 
+
+In the remaining part of the exercise the focus is on the estimation of $f(c)$ for
+$$
+c \in I := \set{-2, -1, 0, 1, 2}.
+$$
+
+That is, the focus is on the computation of the estimators $\hat f(c)$ and their distribution for $c$ taking these five particular values.
+
+#### 3. Use nonparametric bootstrapping to estimate standard errors of $\hat f(c)$ for $c \in I$ when fitting the natural cubic spline model with 3 degrees of freedom. Compare with the theoretical values of the standard errors.
+
+We will use pair-sampling. That is, we simulate $B$ data sets of the same size as the original one by sampling the rows **with** replacement. Then we fit the model on the bootstrapped data sets and then we compute $\hat f(c)$ for $c \in I$. 
+
+First we define the $c$s
+```{r}
+cs <- data.frame(c = seq(-2, 2, by = 1))
+```
+
+Then we can bootstrap
+
+```{r}
+n <- nrow(cholost) # number of data points
+B <- 1000
+
+# a matrix to hold hat f(c) for each value of c
+boot_predictions <- matrix(
+    rep(0, nrow(cs) * B),
+    nrow = B,
+    ncol = nrow(cs)
+)
+
+for (b in seq_len(B)) {
+    indices <- sample(n, n, replace = TRUE) # sample indices of the dataset with replacement
+    boot_data <- cholost[indices, ]
+    boot_fit <- lm(y ~ ns(c, df = 3), data = boot_data)
+    boot_predictions[b, ] <- predict(boot_fit, newdata = cs)
+}
+```
+
+We can then find the estimated standard error for each $c$. Note that we do not have to divide by $n$ as usual because the standard deviation of the bootstrap samples directly estimate the standard error (see example 13.6). We compare with the theoretical standard error which we obtain from `predict()`
+
+```{r}
+SE_comparison <- data.frame(
+    c = cs$c,
+    bootstrap_SE = apply(boot_predictions, 2, sd),
+    theoretical_SE = predict(
+        fit_df3, newdata = cs, se.fit = TRUE
+    )$se.fit
+)
+
+SE_comparison |> t()
+```
+
+There is no clear relation between the two. For $c \in \set{-2, -1, 5}$ the bootstrap standard error is lower, and for $c = -2$ it is by quite a much. 
+
+We also consider residual bootstrapping. This can be done in two ways: 1) keeping the predictors fixed, this is the usual residual bootstrapping, i.e. we only resample the residuals; or 2) resampling the predictors as well. 
+
+We consider both methods. For this, we need the fitted values and the residuals of the the model
+
+```{r}
+residuals <- residuals(fit_df3)
+fitted <- fitted(fit_df3)
+```
+
+
+Next, we do the bootstrapping
+```{r}
+boot_residual_fixed <- matrix(
+    rep(0, nrow(cs) * B),
+    nrow = B,
+    ncol = nrow(cs)
+)
+
+boot_residual_random <- matrix(
+    rep(0, nrow(cs) * B),
+    nrow = B,
+    ncol = nrow(cs)
+)
+
+for (b in seq_len(B)) {
+    # Fixed predictors: resample only the residuals
+    indices <- sample(n, n, replace = TRUE)
+    resid_b <- residuals[indices]
+
+    # construct new data
+    data_b <- cholost
+    data_b$y <- fitted + resid_b # bootstrap response is fitted value + resampled residual
+
+    boot_fit_fixed <- lm(y ~ ns(c, df = 3), data = data_b)
+    boot_residual_fixed[b, ] <- predict(boot_fit_fixed, newdata = cs)
+
+    # Random predictors: sample predictors independently of the residuals
+    
+}
+```
+
+
+
+**As a robustness check we do the residual bootstrapping**
+DO THIS
+
+
+
+::: {style="color: #1f77b4;"}
+Suggested by codex:
+
+Residual bootstrap samples centered residuals from the fitted spline model and adds them to fitted mean values. In the first version, the observed predictors stay fixed. In the second, predictor values are resampled independently of the residuals, and the original fitted mean is evaluated at those sampled predictor values. This differs from pair sampling, which resamples the observed predictor and response together.
+
+Both residual methods assume that the fitted mean is adequate and that the errors have a common distribution independent of the predictor, as discussed in [Section 13.3.2](https://rwr.nrhstat.org/13_interval.html). Pair sampling does not impose this common-error distribution. The values from `predict(..., se.fit = TRUE)` are estimated model-based standard errors, not known true standard errors.
+
+```{r}
+#| label: spline-residual-bootstrap
+set.seed(1333)
+B_residual <- 1000
+n_residual <- nrow(cholost)
+centered_residuals <- residuals(fit_df3) - mean(residuals(fit_df3))
+
+boot_residual_fixed <- matrix(
+    NA_real_, nrow = B_residual, ncol = nrow(cs),
+    dimnames = list(NULL, as.character(cs$c))
+)
+boot_residual_random <- boot_residual_fixed
+
+for (b in seq_len(B_residual)) {
+    # Fixed predictors: resample only residuals.
+    errors_b <- sample(centered_residuals, n_residual, replace = TRUE)
+    fixed_data <- data.frame(
+        c = cholost$c,
+        y = fitted(fit_df3) + errors_b
+    )
+    fixed_fit <- lm(y ~ ns(c, df = 3), data = fixed_data)
+    boot_residual_fixed[b, ] <- predict(fixed_fit, newdata = cs)
+
+    # Random predictors: sample predictors independently of the residuals.
+    indices_b <- sample.int(n_residual, n_residual, replace = TRUE)
+    random_data <- data.frame(c = cholost$c[indices_b])
+    random_data$y <- predict(fit_df3, newdata = random_data) +
+        sample(centered_residuals, n_residual, replace = TRUE)
+    random_fit <- lm(y ~ ns(c, df = 3), data = random_data)
+    boot_residual_random[b, ] <- predict(random_fit, newdata = cs)
+}
+
+SE_bootstrap_comparison <- data.frame(
+    c = cs$c,
+    model_based = predict(fit_df3, newdata = cs, se.fit = TRUE)$se.fit,
+    pairs = apply(boot_predictions, 2, sd),
+    residual_fixed_predictors = apply(boot_residual_fixed, 2, sd),
+    residual_resampled_predictors = apply(boot_residual_random, 2, sd)
+)
+SE_bootstrap_comparison |>
+    mutate(across(where(is.numeric), ~ round(.x, 3)))
+```
+
+The two residual methods need not give identical results: resampling predictors also varies their locations and therefore the information available to estimate the curve. With `ns(c, df = 3)`, the default knots and boundary knots are also recomputed from each resampled predictor set, just as in the pair bootstrap above. The fixed-predictor version is the more direct comparison with the model-based standard errors, which condition on the observed predictors. This implementation uses centered raw residuals; their empirical variance is slightly smaller than the degrees-of-freedom-adjusted residual variance used by `lm()`.
+:::
+
+
+#### 4. Consider the 6 models where $f$ is a natural cubic spline with 1–6 degrees of freedom. Compare the models and use the adjusted $R^2$-statistic to select one of the 6 models.
+
+We simply fit the six models and compute the adjusted $R^2$-statistic for all them. We will choose the model with the highest adjusted $R^2$ as this will be the model (of those we have considered) with the best in-sample prediction. Note that since we consider the *adjusted* $R^2$-statistic, it might not be better to simply use more degrees of freedom. 
+
+```{r}
+spline_models <- vector("list", 6)
+adjusted_R2 <- numeric(6)
+
+for (d in 1:6) {
+    spline_models[[d]] <- lm(y ~ ns(c, df = d), data = cholost)
+    adjusted_R2[d] <- summary(spline_models[[d]])$adj.r.squared
+}
+
+model_comparison <- data.frame(
+    spline_df = 1:6,
+    adjusted_R2 = adjusted_R2
+)
+
+model_comparison
+```
+
+We then find the model with the highest adjusted $R^2$
+
+```{r}
+best_df <- which.max(adjusted_R2)
+best_model <- spline_models[[best_df]]
+
+best_model
+```
+
+it is the one with $\operatorname{df} = 3$. 
+
+We can also see the estimated mean-value function $\hat f(c)$ for all the models
+
+```{r}
+#| label: six-spline-curves
+#| fig-width: 8
+#| fig-height: 5
+
+c_grid <- data.frame(c = seq(min(cholost$c), max(cholost$c), length.out = 300))
+spline_curves <- do.call(rbind, lapply(1:6, function(d) {
+    data.frame(
+        c = c_grid$c,
+        fitted = predict(spline_models[[d]], newdata = c_grid),
+        spline_df = factor(d, levels = 1:6)
+    )
+}))
+
+six_spline_plot <- ggplot(cholost, aes(c, y)) +
+    geom_point() +
+    geom_line(
+        data = spline_curves,
+        aes(x = c, y = fitted, colour = spline_df),
+        linewidth = 0.9) +
+    scale_colour_brewer(palette = "Dark2", name = "Spline df") +
+    labs(x = "c", y = "y")
+
+six_spline_plot
+```
+
+They all look rather similar and it is difficult to tell the differences. 
+
+The bootstrap above does not take into account any model selection such as the selection of degrees of freedom of the cubic spline expansion of $f$. The last question in this exercise explores the effect of model selection on the confidence intervals.
+
+#### 5. Use nonparametric bootstrapping to estimate standard errors of $\hat f(c)$ for $c \in I$ when selection of the degrees of freedom in the range from 1 to 6 is part of the estimation procedure. Compare with the previously estimated standard errors.
+
+Again, we consider pair-samling. To fit the model and take the best according to adjusted $R^2$ is simply a matter of incorporating that into the loop now. 
+
+```{r}
+n <- nrow(cholost) # number of data points
+B <- 1000
+
+# a matrix to hold hat f(c) for each value of c
+boot_predictions_select <- matrix(
+  rep(0, nrow(cs) * B),
+  nrow = B,
+  ncol = nrow(cs)
+)
+
+for (b in seq_len(B)) {
+  indices <- sample(n, n, replace = TRUE) # sample indices of the dataset with replacement
+  boot_data <- cholost[indices, ]
+
+  # fit all 6 spline models
+  spline_models_boot <- vector("list", 6)
+  adjusted_R2_boot <- numeric(6)
+
+  for (d in 1:6) {
+    spline_models_boot[[d]] <- lm(y ~ ns(c, df = d), data = boot_data)
+    adjusted_R2_boot[d] <- summary(spline_models_boot[[d]])$adj.r.squared
+  }
+
+  # get the model with the highest adjusted R^2
+  best_df_boot <- which.max(adjusted_R2_boot)
+  best_model_boot <- spline_models_boot[[best_df_boot]]
+
+  boot_predictions_select[b, ] <- predict(best_model_boot, newdata = cs)
+}
+```
+
+The estimated standard errors, including model selection, is
+
+```{r}
+SE_boot_select <- data.frame(
+    c = cs$c,
+    bootstrap_SE = apply(boot_predictions_select, 2, sd)
+)
+
+SE_boot_select |> t()
+```
+
+Finally, we compare them to what we found in Question 3
+
+```{r}
+SE_comparison |>
+    full_join(
+        SE_boot_select,
+        by = "c",
+        suffix = c("_fixed_df", "_with_selection")
+    ) |>
+    relocate(theoretical_SE, .after = last_col()) |>
+    t()
+```
+
+The standard errors increase when we allow for changing the degrees of freedom. This makes sense, since we are, in some way, estimating an additional parameter, $\operatorname{df}$, and thus there is more variability in the data. 
+
+**CONSIDER IF THIS SHOULD ALSO INCLUDE residual bootstrapping** 
+
+## Exercise 13.2.7
+See solutions for Monday this week for this solution.
