@@ -5,6 +5,7 @@ author: "Kasper Niss"
 
 ```{r}
 #| message: false
+
 library(RwR)
 library(ggplot2)
 library(tibble)
@@ -269,69 +270,38 @@ for (b in seq_len(B)) {
     boot_residual_fixed[b, ] <- predict(boot_fit_fixed, newdata = cs)
 
     # Random predictors: sample predictors independently of the residuals
+    indices_pred <- sample(n, n, replace = TRUE)
+    data_b_random <- data.frame(
+        c = cholost$c[indices_pred] # sample new predictors
+    )
+    data_b_random <- data_b_random |> 
+        mutate(
+            y = predict(fit_df3, newdata = data_b_random) + resid_b
+        )
     
+    boot_fit_random <- lm(y ~ ns(c, df = 3), data = data_b_random)
+    boot_residual_random[b, ] <- predict(boot_fit_random, newdata = cs)
+
 }
 ```
 
-
-
-**As a robustness check we do the residual bootstrapping**
-DO THIS
-
-
-
-::: {style="color: #1f77b4;"}
-Suggested by codex:
-
-Residual bootstrap samples centered residuals from the fitted spline model and adds them to fitted mean values. In the first version, the observed predictors stay fixed. In the second, predictor values are resampled independently of the residuals, and the original fitted mean is evaluated at those sampled predictor values. This differs from pair sampling, which resamples the observed predictor and response together.
-
-Both residual methods assume that the fitted mean is adequate and that the errors have a common distribution independent of the predictor, as discussed in [Section 13.3.2](https://rwr.nrhstat.org/13_interval.html). Pair sampling does not impose this common-error distribution. The values from `predict(..., se.fit = TRUE)` are estimated model-based standard errors, not known true standard errors.
+We compare with the model pair-sampling and the theoretical standard errors as before
 
 ```{r}
-#| label: spline-residual-bootstrap
-set.seed(1333)
-B_residual <- 1000
-n_residual <- nrow(cholost)
-centered_residuals <- residuals(fit_df3) - mean(residuals(fit_df3))
-
-boot_residual_fixed <- matrix(
-    NA_real_, nrow = B_residual, ncol = nrow(cs),
-    dimnames = list(NULL, as.character(cs$c))
-)
-boot_residual_random <- boot_residual_fixed
-
-for (b in seq_len(B_residual)) {
-    # Fixed predictors: resample only residuals.
-    errors_b <- sample(centered_residuals, n_residual, replace = TRUE)
-    fixed_data <- data.frame(
-        c = cholost$c,
-        y = fitted(fit_df3) + errors_b
-    )
-    fixed_fit <- lm(y ~ ns(c, df = 3), data = fixed_data)
-    boot_residual_fixed[b, ] <- predict(fixed_fit, newdata = cs)
-
-    # Random predictors: sample predictors independently of the residuals.
-    indices_b <- sample.int(n_residual, n_residual, replace = TRUE)
-    random_data <- data.frame(c = cholost$c[indices_b])
-    random_data$y <- predict(fit_df3, newdata = random_data) +
-        sample(centered_residuals, n_residual, replace = TRUE)
-    random_fit <- lm(y ~ ns(c, df = 3), data = random_data)
-    boot_residual_random[b, ] <- predict(random_fit, newdata = cs)
-}
-
-SE_bootstrap_comparison <- data.frame(
+SE_comparison_all <- data.frame(
     c = cs$c,
-    model_based = predict(fit_df3, newdata = cs, se.fit = TRUE)$se.fit,
-    pairs = apply(boot_predictions, 2, sd),
-    residual_fixed_predictors = apply(boot_residual_fixed, 2, sd),
-    residual_resampled_predictors = apply(boot_residual_random, 2, sd)
+    pair_boot_SE = apply(boot_predictions, 2, sd),
+    res_fixed_SE = apply(boot_residual_fixed, 2, sd),
+    res_random_SE = apply(boot_residual_random, 2, sd),
+    theoretical_SE = predict(
+        fit_df3, newdata = cs, se.fit = TRUE
+    )$se.fit
 )
-SE_bootstrap_comparison |>
-    mutate(across(where(is.numeric), ~ round(.x, 3)))
+
+SE_comparison_all |> t() 
 ```
 
-The two residual methods need not give identical results: resampling predictors also varies their locations and therefore the information available to estimate the curve. With `ns(c, df = 3)`, the default knots and boundary knots are also recomputed from each resampled predictor set, just as in the pair bootstrap above. The fixed-predictor version is the more direct comparison with the model-based standard errors, which condition on the observed predictors. This implementation uses centered raw residuals; their empirical variance is slightly smaller than the degrees-of-freedom-adjusted residual variance used by `lm()`.
-:::
+The residual bootstrapped standard errors seem to be closer to the theoretical ones than the standard nonparametric bootstrap procedure (pair sampling). 
 
 
 #### 4. Consider the 6 models where $f$ is a natural cubic spline with 1–6 degrees of freedom. Compare the models and use the adjusted $R^2$-statistic to select one of the 6 models.
@@ -460,7 +430,72 @@ SE_comparison |>
 
 The standard errors increase when we allow for changing the degrees of freedom. This makes sense, since we are, in some way, estimating an additional parameter, $\operatorname{df}$, and thus there is more variability in the data. 
 
-**CONSIDER IF THIS SHOULD ALSO INCLUDE residual bootstrapping** 
+As a final check, we also do both residual bootstrap methods and both for fixed and selecting the degrees of freedom. 
+```{r}
+#| label: residual-bootstrap-model-selection
+set.seed(1335)
+n <- nrow(cholost)
+B <- 1000
+resid_best_model <- residuals(best_model)
+fitted_best_model <- fitted(best_model)
+
+boot_residual_fixed_select <- matrix(0, nrow = B, ncol = nrow(cs))
+boot_residual_random_select <- matrix(0, nrow = B, ncol = nrow(cs))
+selected_df_fixed <- integer(B)
+selected_df_random <- integer(B)
+
+for (b in seq_len(B)) {
+    # Fixed predictors: resample only the residuals.
+    indices <- sample(n, n, replace = TRUE)
+    resid_b <- resid_best_model[indices]
+    data_b <- cholost
+    data_b$y <- fitted_best_model + resid_b
+
+    spline_models_fixed <- vector("list", 6)
+    adjusted_R2_fixed <- numeric(6)
+    for (d in 1:6) {
+        spline_models_fixed[[d]] <- lm(y ~ ns(c, df = d), data = data_b)
+        adjusted_R2_fixed[d] <- summary(spline_models_fixed[[d]])$adj.r.squared
+    }
+    best_df_fixed <- which.max(adjusted_R2_fixed)
+    selected_df_fixed[b] <- best_df_fixed
+    boot_residual_fixed_select[b, ] <- predict(
+        spline_models_fixed[[best_df_fixed]], newdata = cs
+    )
+
+    # Random predictors: sample independently of the residuals.
+    indices_pred <- sample(n, n, replace = TRUE)
+    data_b_random <- data.frame(c = cholost$c[indices_pred])
+    data_b_random$y <- predict(best_model, newdata = data_b_random) + resid_b
+
+    spline_models_random <- vector("list", 6)
+    adjusted_R2_random <- numeric(6)
+    for (d in 1:6) {
+        spline_models_random[[d]] <- lm(y ~ ns(c, df = d), data = data_b_random)
+        adjusted_R2_random[d] <- summary(spline_models_random[[d]])$adj.r.squared
+    }
+    best_df_random <- which.max(adjusted_R2_random)
+    selected_df_random[b] <- best_df_random
+    boot_residual_random_select[b, ] <- predict(
+        spline_models_random[[best_df_random]], newdata = cs
+    )
+}
+
+# Compare fixed df with selection, keeping the model-based SEs last.
+SE_all_methods <- data.frame(
+    c = cs$c,
+    pairs_fixed_df = apply(boot_predictions, 2, sd),
+    pairs_with_selection = apply(boot_predictions_select, 2, sd),
+    residual_fixed_predictors_fixed_df = apply(boot_residual_fixed, 2, sd),
+    residual_fixed_predictors_selection = apply(boot_residual_fixed_select, 2, sd),
+    residual_random_predictors_fixed_df = apply(boot_residual_random, 2, sd),
+    residual_random_predictors_selection = apply(boot_residual_random_select, 2, sd),
+    theoretical_SE = predict(best_model, newdata = cs, se.fit = TRUE)$se.fit
+)
+SE_all_methods |> round(3) |> t()
+```
+
+Again, the residual bootstrap estimates standard errors closer to the theoretical. The residual bootstrapp with random predictors and selecting the degrees of freedom has the highest standard error estimate across all $c$s and is also higher than the theoretical ones, and the fixed predictors for selecting the degrees of freedom is the second highest, which is aligned with what we saw for pair sampling as well, due to the "extra" parameter. 
 
 ## Exercise 13.2.7
 See solutions for Monday this week for this solution.
