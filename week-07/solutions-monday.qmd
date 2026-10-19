@@ -34,30 +34,27 @@ pois_reg_model <- glm(
 
 summary(pois_reg_model)
 ```
-
-Comparing the (residual) deviance to the residual degrees of freedom using their ratio,
+Recall equation (5.8)
 $$
-\frac{\operatorname{residual}}{\operatorname{residual \ df}},
+D-D_0 \overset{\text{approx}}{\sim} \varphi \chi^2_{p-p_0}
 $$
-
+Where $D$ is the deviance of some 'full' model and $D_0$ the deviance of some null model. Taking the full model to be the saturated model where each point has it's own mean and the null model to be the from above we find that
+$$
+D_0 \overset{\text{approx}}{\sim} \varphi \chi^2_{n-p}.
+$$
+If the Poisson model is well-specified $\varphi = 1$, which indicates that $\mathbb{E}[D_0/(n-p)] \approx 1$. We find 
 we find that
-
 ```{r}
 D <- deviance(pois_reg_model)
 df <- df.residual(pois_reg_model)
 
 D / df
 ```
-
-and it should be compared to 1, but there is no "clear" cutoff for which we can say that the model fits or not. 
-
+Which is not too far from 1. We can also check how extreme our obtained deviance is compared to the approximated distribution,
 ```{r}
-D <= qchisq(0.95, df)
+1-pchisq(D,df)
 ```
-
-If `TRUE`, informally, we can say that there is no evidence of lack of fit, but to investigate the mean-value structure and the variance, we have to look at a residual plot. 
-
-Hence, we plot the Pearson residuals
+Which does not indicate any evidence of lack of fit. We investigate the mean-value structure and the variance, by plotting the Pearson residuals
 
 ```{r}
 df_diag <- data.frame(
@@ -76,7 +73,7 @@ df_diag |> ggplot(aes(x = fitted, y = residuals)) +
 
 The smoother stays fairly close to zero, without any real systematic trend. A few large fitted values contribute to the uncertainty in the right-hand side of the plot. The residual plot shows no obvious evidence of lack of fit. 
 
-We also simulate some residuals
+We compare the residual plot to the residual plots we get when we simulate from the fitted model
 
 ```{r}
 #| label: simulated-deviance-residuals
@@ -134,7 +131,7 @@ phi_hat_full <- sum(residuals(pois_reg_model, type = "pearson")^2) / df.residual
 phi_hat_full
 ```
 
-Close to $1$, but not exactly. No indication of overdispersion.
+The estimatied dispersion parameter is fairly close to the theoretical value of $1$ for a Poisson model, and there is no indication of overdispersion (if anything, the model is slightly under-dispersed).
 
 We compute the standard $95\%$ confidence interval and the likelihood confidence interval for $\beta_D$ using `confint.default()` and `confint()`, respectively. We also transform the interval using `exp`. 
 
